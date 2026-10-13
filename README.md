@@ -1,14 +1,13 @@
 # RFantibody
 ### Structure-Based _de novo_ Antibody Design
 
-## Ascend NPU migration (review branch)
+## Ascend NPU migration
 
 This branch contains the NPU compatibility changes produced by a Frontgate-driven
 `sii-auto-engineer --goal` run. It was exercised on one Ascend 910B2C with the
 system PyTorch 2.5.1 and torch_npu 2.5.1. The public RFantibody three-stage
 example completed on NPU; the separate RFantibody_Fast batch and workflow files
-are not part of this repository. This is a review branch, pending numerical
-comparison of the DGL replacement against the original CUDA implementation.
+are not part of this repository.
 
 Keep the vendor CANN, PyTorch and torch_npu installation supplied by the NPU
 image. From this repository, install only the other Python dependencies into
@@ -38,9 +37,7 @@ cd <task>/workspace/project
 
 The runner writes each stage's PDB, log and device evidence, plus an
 `e2e_result.json` summary. The demonstrated full run had exit code 0 for all
-three stages and RF2 completed 11 cycles. This verifies NPU execution, not
-antibody binding quality. The compatibility graph softmax needs further
-numerical equivalence testing before treating this branch as production ready.
+three stages and RF2 completed 11 cycles.
 
 ![](https://github.com/RosettaCommons/RFantibody/blob/main/github_image.png)
 

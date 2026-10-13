@@ -77,10 +77,7 @@ def e_dot_v(g, key, query):
 def edge_softmax(g, logits, norm_by="dst"):
     """Softmax over incoming edges per destination node (DGL ``norm_by='dst'``).
 
-    Stabilised with a per-feature-dimension global shift over all edges.  Softmax
-    is invariant to a constant shift *within each destination group*, so a global
-    shift is mathematically exact while avoiding the unsupported per-destination
-    ``scatter_reduce``/``cummax`` reductions.
+    Uses a shared shift before exponentiation and sums by destination node.
     """
     if norm_by != "dst":
         raise NotImplementedError(
