@@ -25,6 +25,7 @@ from rfantibody.rfdiffusion.potentials.manager import PotentialManager
 from rfantibody.rfdiffusion.RoseTTAFoldModel import RoseTTAFoldModule
 from rfantibody.rfdiffusion.util import Dotdict
 from rfantibody.rfdiffusion.util_module import ComputeAllAtomCoords
+from rfantibody.util.device import get_device
 
 TOR_INDICES  = rfantibody.rfdiffusion.util.torsion_indices
 TOR_CAN_FLIP = rfantibody.rfdiffusion.util.torsion_can_flip
@@ -46,10 +47,7 @@ class Sampler:
 
     def initialize(self, conf: DictConfig):
         self._log = logging.getLogger(__name__)
-        if torch.cuda.is_available():
-            self.device = torch.device('cuda')
-        else:
-            self.device = torch.device('cpu')
+        self.device = get_device()
         needs_model_reload = not self.initialized or conf.inference.ckpt_override_path != self._conf.inference.ckpt_override_path
 
         # Assign config to Sampler

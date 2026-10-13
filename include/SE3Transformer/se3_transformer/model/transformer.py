@@ -26,7 +26,7 @@ from typing import Optional, Literal, Dict
 
 import torch
 import torch.nn as nn
-from dgl import DGLGraph
+from se3_transformer.graph_compat import DGLGraph
 from torch import Tensor
 
 from se3_transformer.model.basis import get_basis, update_basis_with_fused

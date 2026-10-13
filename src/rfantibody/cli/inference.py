@@ -245,8 +245,9 @@ def proteinmpnn(
         click.echo(f'Error: ProteinMPNN script not found at {script_path}', err=True)
         sys.exit(1)
 
-    # Build command
-    cmd = ['python', str(script_path)]
+    # Build command. ``-u`` keeps the child interpreter unbuffered so a hard
+    # failure is captured in the stage log instead of being lost with stdout.
+    cmd = ['python', '-u', str(script_path)]
 
     # Input
     if input_dir:

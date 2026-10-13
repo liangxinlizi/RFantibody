@@ -1,6 +1,47 @@
 # RFantibody
 ### Structure-Based _de novo_ Antibody Design
 
+## Ascend NPU migration (review branch)
+
+This branch contains the NPU compatibility changes produced by a Frontgate-driven
+`sii-auto-engineer --goal` run. It was exercised on one Ascend 910B2C with the
+system PyTorch 2.5.1 and torch_npu 2.5.1. The public RFantibody three-stage
+example completed on NPU; the separate RFantibody_Fast batch and workflow files
+are not part of this repository. This is a review branch, pending numerical
+comparison of the DGL replacement against the original CUDA implementation.
+
+Keep the vendor CANN, PyTorch and torch_npu installation supplied by the NPU
+image. From this repository, install only the other Python dependencies into
+an isolated environment:
+
+```bash
+python3 -m venv --system-site-packages .venv
+PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
+PIP_TRUSTED_HOST=mirrors.aliyun.com \
+.venv/bin/python -m pip install 'numpy==1.26.4' 'hydra-core==1.3.2' \
+  'icecream==2.1.10' 'opt-einsum==3.4.0' 'biotite==1.2.0' \
+  'e3nn==0.5.9' 'pyrsistent==0.20.0' 'pandas==2.3.3' 'pytest>=8.0.0'
+.venv/bin/python -m pip install --no-deps -e .
+```
+
+The demonstrated end-to-end runner uses the auto-engineer task layout:
+`<task>/workspace/project` is this repository and `<task>/migration.yaml`
+sets `auxiliary_models.local_path` to a directory containing
+`RFdiffusion_Ab.pt`, `ProteinMPNN_v48_noise_0.2.pt` and `RF2_ab.pt`.
+With that layout, run the repository's RSV site 3 example through the complete
+diffusion schedule and all three models:
+
+```bash
+cd <task>/workspace/project
+.venv/bin/python e2e_run.py --output-dir ../../experiments/npu_chain_full50 --final-step 1
+```
+
+The runner writes each stage's PDB, log and device evidence, plus an
+`e2e_result.json` summary. The demonstrated full run had exit code 0 for all
+three stages and RF2 completed 11 cycles. This verifies NPU execution, not
+antibody binding quality. The compatibility graph softmax needs further
+numerical equivalence testing before treating this branch as production ready.
+
 ![](https://github.com/RosettaCommons/RFantibody/blob/main/github_image.png)
 
 # Description

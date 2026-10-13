@@ -10,6 +10,7 @@ import torch
 import rfantibody.proteinmpnn.util_protein_mpnn as mpnn_util
 from rfantibody.proteinmpnn.sample_features import SampleFeatures
 from rfantibody.proteinmpnn.struct_manager import StructManager
+from rfantibody.util.device import get_device, import_torch_npu
 
 #################################
 # Parse Arguments
@@ -67,7 +68,12 @@ if args.deterministic:
     random.seed(42)
     np.random.seed(42)
     torch.manual_seed(42)
+    # CUDA seeding is a silent no-op on a CPU-only torch build; keep it for
+    # genuine CUDA hosts and also seed the Ascend NPU when torch_npu is present.
+    import_torch_npu()
     torch.cuda.manual_seed_all(42)
+    if hasattr(torch, "npu") and torch.npu.is_available():
+        torch.npu.manual_seed_all(42)
     
     # Enable deterministic behavior
     torch.backends.cudnn.deterministic = True
@@ -82,12 +88,19 @@ class ProteinMPNN_runner():
     def __init__(self, args, struct_manager):
         self.struct_manager = struct_manager
 
-        if torch.cuda.is_available():
+        device = get_device()
+        if device.type == "npu":
+            print(f'Found Ascend NPU will run ProteinMPNN on {device}')
+        elif device.type == "cuda":
             print('Found GPU will run ProteinMPNN on GPU')
-            self.device = "cuda:0"
         else:
-            print('No GPU found, running ProteinMPNN on CPU')
-            self.device = "cpu"
+            # A silent CPU fallback for real model inference is forbidden by
+            # this migration; fail loudly instead of computing on CPU.
+            raise RuntimeError(
+                "No NPU or CUDA device available for ProteinMPNN; CPU fallback "
+                "is not permitted by this migration"
+            )
+        self.device = device
 
         self.mpnn_model = mpnn_util.init_seq_optimize_model(
             self.device,

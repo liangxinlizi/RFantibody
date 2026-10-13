@@ -1,6 +1,6 @@
 import copy
 
-import dgl
+from se3_transformer import graph_compat as dgl
 import numpy as np
 import torch
 import torch.nn as nn

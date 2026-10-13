@@ -224,7 +224,7 @@ class Predictor():
         # from xyz to get xxxx or from xxxx to xyz
         self.l2a = util.long2alt.to(self.device)
         self.aamask = util.allatom_mask.to(self.device)
-        self.lddt_bins = torch.linspace(1.0/50, 1.0, 50) - 1.0/100
+        self.lddt_bins = (torch.linspace(1.0/50, 1.0, 50) - 1.0/100).to(self.device)
         self.xyz_converter = XYZConverter()
 
 

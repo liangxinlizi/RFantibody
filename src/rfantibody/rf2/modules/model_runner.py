@@ -86,7 +86,11 @@ class AbPredictor(Predictor):
                     to_write['best'] = {'pose': best_pose, 'metrics': best_metrics}
                 if self.conf.output.output_intermediates:
                     to_write[i_cycle] = {'pose': output_pose_i, 'metrics': metrics_i}
-                torch.cuda.empty_cache()
+                dev = torch.device(self.device)
+                if dev.type == "npu":
+                    torch.npu.empty_cache()
+                elif dev.type == "cuda":
+                    torch.cuda.empty_cache()
         print(f"[RF2] Completed: {tag} - Best pLDDT: {best_lddt.mean():.3f}")
         write_output(to_write, tag, self.conf)
 
@@ -155,7 +159,7 @@ class AbPredictor(Predictor):
         )
         pred_lddt = pred_lddt.sum(dim=1)
         pae = pae_unbin(logits_pae)
-        interaction_pae=pae[0, ~pose.same_chain].mean()
+        interaction_pae = pae[0, ~pose.same_chain.to(pae.device)].mean()
         metrics["interaction_pae"] = interaction_pae
         metrics["pae"] = pae
         metrics["pred_lddt"] = pred_lddt
