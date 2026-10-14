@@ -17,6 +17,7 @@ an isolated environment:
 git clone --branch feat/ascend-npu-rfantibody-goal https://github.com/liangxinlizi/RFantibody.git
 cd RFantibody
 python3 -m venv --system-site-packages .venv
+source .venv/bin/activate
 PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
 PIP_TRUSTED_HOST=mirrors.aliyun.com \
 .venv/bin/python -m pip install 'numpy==1.26.4' 'hydra-core==1.3.2' \
@@ -34,9 +35,9 @@ bash ascend-kernel/build.sh
 
 The NPU path uses native kernels for destination-wise softmax, edge sum and
 mean, incoming-degree counts, average pooling, and edge-to-node dot products.
-To run the graph parity
-tests against an independent CPU reference, install `dgl==1.1.3` into `.venv`
-and run `.venv/bin/python -m test.run_tests`.
+To run the graph parity tests against an independent CPU reference, install
+`dgl==1.1.3` into `.venv` and run
+`.venv/bin/python -m pytest test/graph_parity -q`.
 
 The end-to-end runner can be launched from a standalone clone. Place
 `RFdiffusion_Ab.pt`, `ProteinMPNN_v48_noise_0.2.pt` and `RF2_ab.pt` in
@@ -94,6 +95,9 @@ The RFantibody pipeline is described in detail in [this preprint](https://www.bi
 - [Quiver Files](#quiver-files)
 - [Conclusion](#conclusion)
 
+
+The upstream installation instructions below describe the NVIDIA CUDA setup.
+For Ascend NPU, use the migration instructions above.
 
 # Requirements
 
