@@ -23,21 +23,23 @@ PIP_TRUSTED_HOST=mirrors.aliyun.com \
 .venv/bin/python -m pip install --no-deps -e .
 ```
 
-The demonstrated end-to-end runner uses the auto-engineer task layout:
-`<task>/workspace/project` is this repository and `<task>/migration.yaml`
-sets `auxiliary_models.local_path` to a directory containing
-`RFdiffusion_Ab.pt`, `ProteinMPNN_v48_noise_0.2.pt` and `RF2_ab.pt`.
-With that layout, run the repository's RSV site 3 example through the complete
-diffusion schedule and all three models:
+The end-to-end runner can be launched from a standalone clone. Place
+`RFdiffusion_Ab.pt`, `ProteinMPNN_v48_noise_0.2.pt` and `RF2_ab.pt` in
+`weights/`, or pass their directory with `--weights-dir`. The bundled RSV site 3
+target and hu-4D5-8 Fv framework are used by default. Run all three models on
+an NPU with:
 
 ```bash
-cd <task>/workspace/project
-.venv/bin/python e2e_run.py --output-dir ../../experiments/npu_chain_full50 --final-step 1
+cd RFantibody
+.venv/bin/python e2e_run.py
 ```
 
+Use `--target`, `--framework`, `--weights-dir` and `--output-dir` for other
+inputs or locations. The default output directory is `outputs/npu_chain`.
 The runner writes each stage's PDB, log and device evidence, plus an
-`e2e_result.json` summary. The demonstrated full run had exit code 0 for all
-three stages and RF2 completed 11 cycles.
+`e2e_result.json` summary. No AutoEngineer task directory or `migration.yaml`
+is needed. The demonstrated full run had exit code 0 for all three stages and
+RF2 completed 11 cycles.
 
 ![](https://github.com/RosettaCommons/RFantibody/blob/main/github_image.png)
 

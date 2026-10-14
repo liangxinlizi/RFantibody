@@ -18,14 +18,12 @@ The script never falls back to CPU silently: every stage is wrapped by a device
 guard (``e2e_support/sitecustomize.py``) that records whether models were moved
 onto an NPU, and the whole run aborts unless ``torch.npu.is_available()``.
 
-It is intentionally not self-verifying against H100/A4000 references: it records
-commands, exit codes, wall-clock timings, device evidence, weight hashes and
-artifacts so that the deterministic evaluator (``ae-temp/validate.py``) can do
-the acceptance checks.
+It records commands, exit codes, wall-clock timings, device evidence, weight
+hashes and artifacts for later inspection or comparison.
 
-Usage (from ``workspace/project``)::
+Usage (from the repository root)::
 
-    .venv/bin/python e2e_run.py --output-dir ../../experiments/npu_chain
+    .venv/bin/python e2e_run.py --weights-dir /path/to/weights
 """
 
 from __future__ import annotations
@@ -45,9 +43,7 @@ from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-TASK_ROOT = PROJECT_ROOT.parents[1]
-MIGRATION_YAML = TASK_ROOT / "migration.yaml"
-DEFAULT_OUTPUT_DIR = TASK_ROOT / "experiments" / "npu_chain"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "npu_chain"
 GUARD_DIR = PROJECT_ROOT / "e2e_support"
 
 DESIGN_LOOPS = "L1:8-13,L2:7,L3:9-11,H1:7,H2:6,H3:5-13"
@@ -72,20 +68,6 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def load_migration_config() -> dict[str, Any]:
-    try:
-        import yaml  # type: ignore
-    except ImportError as exc:  # pragma: no cover
-        raise SystemExit(f"PyYAML is required to read {MIGRATION_YAML}: {exc}")
-    if not MIGRATION_YAML.exists():
-        raise SystemExit(f"migration.yaml not found at {MIGRATION_YAML}")
-    with open(MIGRATION_YAML, encoding="utf-8") as handle:
-        data = yaml.safe_load(handle) or {}
-    if not isinstance(data, dict):
-        raise SystemExit(f"migration.yaml is not a mapping: {MIGRATION_YAML}")
-    return data
 
 
 def npu_preflight() -> dict[str, Any]:
@@ -113,12 +95,8 @@ def npu_preflight() -> dict[str, Any]:
     }
 
 
-def resolve_weights(config: dict[str, Any]) -> tuple[Path, list[dict[str, Any]]]:
-    aux = config.get("auxiliary_models") or {}
-    weights_dir = aux.get("local_path")
-    if not weights_dir:
-        raise SystemExit("migration.yaml auxiliary_models.local_path is empty")
-    weights_dir = Path(weights_dir).resolve()
+def resolve_weights(weights_dir: Path) -> tuple[Path, list[dict[str, Any]]]:
+    weights_dir = weights_dir.resolve()
 
     expected = {
         "rfdiffusion": weights_dir / "RFdiffusion_Ab.pt",
@@ -146,18 +124,11 @@ def resolve_weights(config: dict[str, Any]) -> tuple[Path, list[dict[str, Any]]]
     return weights_dir, records
 
 
-def resolve_inputs(config: dict[str, Any]) -> dict[str, Path]:
-    """Prefer the copied repository test inputs; fall back to migration.yaml."""
+def resolve_inputs(args: argparse.Namespace) -> dict[str, Path]:
+    """Use explicit inputs or the repository's bundled RSV example."""
     local_dir = PROJECT_ROOT / "test" / "rfdiffusion" / "inputs_for_test"
-    target = local_dir / "rsv_site3.pdb"
-    framework = local_dir / "hu-4D5-8_Fv.pdb"
-    if not target.is_file():
-        sample = (config.get("input") or {}).get("sample_path")
-        if not sample:
-            raise SystemExit("Cannot find RSV site 3 target PDB in test inputs or migration.yaml")
-        target = Path(sample)
-    if not framework.is_file():
-        raise SystemExit(f"Cannot find hu-4D5-8 Fv framework PDB: {framework}")
+    target = args.target or local_dir / "rsv_site3.pdb"
+    framework = args.framework or local_dir / "hu-4D5-8_Fv.pdb"
     for path in (target, framework):
         if not path.is_file():
             raise SystemExit(f"Configured input PDB missing: {path}")
@@ -308,15 +279,11 @@ def _looks_like_pdb(path: Path) -> bool:
 
 
 def _run(args: argparse.Namespace, output_dir: Path) -> int:
-    config = load_migration_config()
-    allow_download = bool(
-        (config.get("model") or {}).get("allow_download")
-        or (config.get("auxiliary_models") or {}).get("allow_download")
-    )
+    allow_download = args.allow_download
 
     hardware = npu_preflight()
-    weights_dir, weights = resolve_weights(config)
-    inputs = resolve_inputs(config)
+    weights_dir, weights = resolve_weights(args.weights_dir)
+    inputs = resolve_inputs(args)
 
     offline_env: dict[str, str] = {}
     if not allow_download:
@@ -493,6 +460,15 @@ def main() -> int:
         default=DEFAULT_OUTPUT_DIR,
         help="Directory that receives stage logs, device evidence and artifacts.",
     )
+    parser.add_argument(
+        "--weights-dir",
+        type=Path,
+        default=Path(os.environ.get("RFANTIBODY_WEIGHTS", PROJECT_ROOT / "weights")),
+        help="Directory containing the three model checkpoints (default: weights/).",
+    )
+    parser.add_argument("--target", type=Path, help="Target PDB (default: bundled RSV example).")
+    parser.add_argument("--framework", type=Path, help="Framework PDB (default: bundled Fv example).")
+    parser.add_argument("--allow-download", action="store_true")
     parser.add_argument("--num-designs", type=int, default=1)
     parser.add_argument("--diffuser-t", type=int, default=50)
     parser.add_argument("--final-step", type=int, default=1)
