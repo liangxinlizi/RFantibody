@@ -1062,3 +1062,41 @@ def test_native_bridge_requires_torch_npu(tmp_path):
     )
     assert proc.returncode != 0, proc.stdout + proc.stderr
     assert "simulated missing backend" in (proc.stdout + proc.stderr)
+
+# --------------------------------------------------------------------------- #
+# Standalone acceptance-runner safety: the default must reproduce the validated
+# 50-to-1 chain, and a non-empty output directory must be refused before any NPU
+# work so a repeated command cannot silently reuse a previous cautious-mode PDB.
+# These are add-only general tests (no example-specific branch, no fallback).
+# --------------------------------------------------------------------------- #
+def test_e2e_runner_defaults_reproduce_validated_chain():
+    """A bare runner invocation must default to the validated 50-to-1 chain."""
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+    import e2e_run
+
+    args = e2e_run.build_parser().parse_args([])
+    assert args.final_step == 1
+    assert args.diffuser_t == 50
+    assert args.num_designs == 1
+    assert args.seqs_per_struct == 1
+    assert args.num_recycles == 10
+    assert args.overwrite_existing is False
+
+
+def test_e2e_runner_rejects_pre_existing_output(tmp_path):
+    """A non-empty output dir must be refused before any NPU work (no reuse)."""
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+    import e2e_run
+
+    out = tmp_path / "chain"
+    stage = out / "1_rfdiffusion"
+    stage.mkdir(parents=True)
+    (stage / "ab_des_0.pdb").write_text(
+        "ATOM      1  N   ALA A   1\n", encoding="utf-8"
+    )
+    rc = e2e_run.main(["--output-dir", str(out)])
+    assert rc == 1
+    report = json.loads((out / "e2e_result.json").read_text(encoding="utf-8"))
+    assert "non-empty output directory" in (report.get("error") or "")

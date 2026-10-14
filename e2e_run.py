@@ -41,6 +41,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -70,6 +71,12 @@ CPU_FALLBACK_MARKERS = (
     "device='cpu'",
     'device="cpu"',
     "using cpu",
+)
+
+# A stage that only logs a cautious-mode skip has not produced a fresh artifact
+# for this invocation, so its exit code 0 must not be accepted as a pass.
+SKIP_MARKERS = (
+    "skipping this design because",
 )
 
 
@@ -211,6 +218,7 @@ def run_stage(
     env = stage_environment({**extra_env, "AE_DEVICE_GUARD_OUT": str(guard_base)})
 
     started = time.monotonic()
+    started_wall = time.time()
     with open(log_path, "w", encoding="utf-8") as log_handle:
         log_handle.write(f"$ {' '.join(shlex.quote(c) for c in cmd)}\n")
         log_handle.write(f"# cwd={PROJECT_ROOT}\n")
@@ -228,6 +236,7 @@ def run_stage(
     log_text = log_path.read_text(encoding="utf-8", errors="replace")
     lower = log_text.lower()
     cpu_markers = sorted({marker for marker in CPU_FALLBACK_MARKERS if marker in lower})
+    skip_markers = sorted({marker for marker in SKIP_MARKERS if marker in lower})
 
     guard = _aggregate_guard(guard_base)
 
@@ -239,6 +248,11 @@ def run_stage(
                 artifacts.append(str(p))
 
     pdb_parseable = all(_looks_like_pdb(Path(a)) for a in artifacts) if artifacts else False
+    fresh_artifacts = [
+        artifact
+        for artifact in artifacts
+        if Path(artifact).stat().st_mtime >= started_wall - 1
+    ]
 
     recycles_confirmed: bool | None = None
     if require_recycles is not None:
@@ -249,6 +263,8 @@ def run_stage(
     checks = {
         "exit_code_zero": proc.returncode == 0,
         "artifacts_nonempty_pdb": bool(artifacts) and pdb_parseable,
+        "artifacts_fresh": bool(fresh_artifacts),
+        "no_skip_markers": not skip_markers,
         "npu_device_used": bool(guard.get("npu_used")),
         "cuda_not_used": not bool(guard.get("cuda_used")),
         "no_cpu_fallback_markers": not cpu_markers,
@@ -268,6 +284,8 @@ def run_stage(
         "device_guard_files": [str(p) for p in sorted(guard_base.parent.glob(f"{guard_base.name}.*.json"))],
         "device_evidence": guard,
         "cpu_fallback_markers": cpu_markers,
+        "skip_markers": skip_markers,
+        "fresh_artifacts": fresh_artifacts,
         "rf2_recycles": require_recycles,
         "rf2_recycles_confirmed": recycles_confirmed,
         "checks": checks,
@@ -323,8 +341,28 @@ def _looks_like_pdb(path: Path) -> bool:
     return False
 
 
+def _pre_existing_files(output_dir: Path) -> list[Path]:
+    """Return the files already under ``output_dir`` (empty for a fresh run)."""
+    if not output_dir.is_dir():
+        return []
+    return sorted(p for p in output_dir.rglob("*") if p.is_file())
+
+
 def _run(args: argparse.Namespace, output_dir: Path) -> int:
     allow_download = bool(args.allow_download)
+
+    pre_existing = _pre_existing_files(output_dir)
+    if pre_existing and not args.overwrite_existing:
+        raise SystemExit(
+            f"refusing to reuse a non-empty output directory ({len(pre_existing)} "
+            f"file(s)): {output_dir}. RFdiffusion cautious mode would skip the "
+            "design and still exit 0. Choose a new --output-dir, or pass "
+            "--overwrite-existing to archive the previous outputs."
+        )
+    if pre_existing:
+        stamp = utc_now().replace(":", "").replace("-", "")
+        archive = output_dir.parent / f"{output_dir.name}.archive-{stamp}"
+        shutil.move(str(output_dir), str(archive))
 
     hardware = npu_preflight()
     weights_dir, weights = resolve_weights(resolve_weights_dir(args.weights_dir))
@@ -497,7 +535,7 @@ def _fail(output_dir: Path, message: str) -> int:
     return 1
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--output-dir",
@@ -523,12 +561,27 @@ def main() -> int:
     )
     parser.add_argument("--num-designs", type=int, default=1)
     parser.add_argument("--diffuser-t", type=int, default=50)
-    parser.add_argument("--final-step", type=int, default=48)
+    # The configured target command runs the validated 50-to-1 diffusion chain
+    # (diffuser_t=50 -> final-step=1); the standalone default must reproduce it.
+    parser.add_argument("--final-step", type=int, default=1)
     parser.add_argument("--seqs-per-struct", type=int, default=1)
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--num-recycles", type=int, default=10)
     parser.add_argument("--deterministic", action="store_true", default=True)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--overwrite-existing",
+        action="store_true",
+        default=False,
+        help=(
+            "Archive a non-empty --output-dir before running instead of refusing. "
+            "Default: refuse, so a previous run's artifacts cannot be reused."
+        ),
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
 
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)

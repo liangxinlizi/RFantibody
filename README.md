@@ -51,9 +51,13 @@ an NPU with:
 
 Use `--target`, `--framework`, `--weights-dir` and `--output-dir` for other
 inputs or locations. The default output directory is `outputs/npu_chain`.
+The default performs the complete 50-to-1 diffusion. If the output directory
+already contains files, the runner stops before inference. Pass
+`--overwrite-existing` to archive the previous directory under a UTC-stamped
+sibling and start with an empty one.
 The runner writes each stage's PDB, log and device evidence, plus an
 `e2e_result.json` summary. The accepted native-graph run completed all three
-stages on NPU, passed 49 graph tests and independent DGL CPU parity, and
+stages on NPU, passed 49 graph parity checks and four runtime checks, and
 completed 11 RF2 cycles. The runner reads no AutoEngineer task directory or
 `migration.yaml`.
 
