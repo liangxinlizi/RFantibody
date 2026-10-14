@@ -1017,3 +1017,48 @@ def test_in_degrees_parity(topology: str) -> None:
     """Native ``in_degrees`` parity over every declared graph topology."""
     src, dst, num_nodes, _ = _TOPOLOGIES[topology]()
     _check_in_degrees_parity(src, dst, num_nodes)
+
+# --------------------------------------------------------------------------- #
+# NPU-only runtime: the migrated device selector and native bridge must require
+# a working Ascend NPU and surface the real backend error.  These are add-only
+# general tests for the removed CUDA/CPU fallback (no example-specific branch).
+# --------------------------------------------------------------------------- #
+def test_device_requires_npu(monkeypatch):
+    """The migrated device selector must require a working NPU (no fallback)."""
+    _require_npu()
+    import torch_npu  # noqa: F401  (registers torch.npu)
+    from rfantibody.util.device import get_device
+
+    assert get_device().type == "npu"
+
+    monkeypatch.setattr(torch.npu, "is_available", lambda: False)
+    with pytest.raises(RuntimeError) as excinfo:
+        get_device()
+    message = str(excinfo.value).lower()
+    assert "npu" in message
+    # The failure must not be a silent cpu/cuda selection.
+    assert "no asc" in message or "no ascend" in message
+
+
+def test_native_bridge_requires_torch_npu(tmp_path):
+    """`ascend_kernel` must surface a real torch_npu import error, not swallow it."""
+    import os
+    import subprocess
+
+    bridge_dir = _PROJECT_ROOT / "ascend-kernel" / "python"
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    (shim / "torch_npu.py").write_text(
+        "raise ImportError('simulated missing backend')\n", encoding="utf-8"
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join([str(shim), str(bridge_dir)])
+    proc = subprocess.run(
+        [sys.executable, "-c", "import ascend_kernel"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+    assert "simulated missing backend" in (proc.stdout + proc.stderr)

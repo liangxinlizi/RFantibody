@@ -1,30 +1,37 @@
-"""NPU-first device selection shared by the RFantibody stages.
+"""NPU-only device selection shared by the RFantibody stages.
 
-The upstream code selected ``cuda`` only when ``torch.cuda.is_available()`` and
-otherwise silently fell back to ``cpu``.  On an Ascend host there is no CUDA, so
-that fallback would run the real model on CPU, which this migration forbids.
-
-Importing ``torch_npu`` registers the ``PrivateUse1`` (NPU) backend.  If no NPU
-is available the e2e device guard fails the stage rather than silently accepting
-a CPU run.
+This migrated build runs on an Ascend NPU.  Importing ``torch_npu`` registers
+the ``PrivateUse1`` (NPU) backend; if that import fails the real error is
+propagated.  ``get_device`` returns the current NPU device and raises an explicit
+``RuntimeError`` when no usable NPU is present.  There is deliberately no CUDA or
+CPU fallback: a silent fallback would run the model on the wrong device, which
+this migration forbids.
 """
 
 import torch
 
 
 def import_torch_npu():
-    try:
-        import torch_npu  # noqa: F401
+    """Import ``torch_npu``, registering the ``PrivateUse1`` (NPU) backend.
 
-        return True
-    except ImportError:
-        return False
+    The real import error (missing or broken CANN/torch_npu) is propagated so the
+    process fails immediately and visibly instead of silently continuing.
+    """
+    import torch_npu  # noqa: F401
+
+    return torch_npu
 
 
 def get_device():
-    import_torch_npu()  # register the PrivateUse1 backend
-    if hasattr(torch, "npu") and torch.npu.is_available():
-        return torch.device(f"npu:{torch.npu.current_device()}")
-    if torch.cuda.is_available():  # only used if a genuine CUDA stack exists
-        return torch.device("cuda")
-    return torch.device("cpu")
+    """Return the Ascend NPU device; CPU/CUDA fallback is disabled.
+
+    Raises ``RuntimeError`` when no usable NPU backend is present rather than
+    silently selecting ``cuda`` or ``cpu``.
+    """
+    import_torch_npu()  # register the PrivateUse1 backend, or raise
+    if not (hasattr(torch, "npu") and torch.npu.is_available()):
+        raise RuntimeError(
+            "No Ascend NPU available: this migrated RFantibody build requires a "
+            "working torch_npu/NPU; CUDA and CPU fallback are disabled."
+        )
+    return torch.device(f"npu:{torch.npu.current_device()}")

@@ -13,11 +13,10 @@ attention path.
 from __future__ import annotations
 
 # Register the PrivateUse1 (NPU) backend before the extension is loaded so the
-# generated ``RegisterAscendBinary`` constructor can query the device.
-try:  # pragma: no cover - environment dependent
-    import torch_npu  # noqa: F401
-except Exception:  # pragma: no cover - environment dependent
-    pass
+# generated ``RegisterAscendBinary`` constructor can query the device.  The
+# backend is required: a missing/broken torch_npu raises the real error here
+# instead of being swallowed and failing later with a confusing message.
+import torch_npu  # noqa: F401
 
 # Importing the compiled binding runs the ``TORCH_LIBRARY`` static initializers
 # that register ``npu::graph_probe`` for dispatch key ``PrivateUse1``.
