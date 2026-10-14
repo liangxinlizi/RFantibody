@@ -7,10 +7,12 @@ Implements only what ``include/SE3Transformer`` and ``rfantibody`` consume:
 * ``ops.copy_e_sum`` / ``ops.copy_e_mean`` / ``ops.e_dot_v``
 * ``edge_softmax`` (``norm_by='dst'``)
 
-Semantics mirror DGL 2.x (see ``ae-temp/latest_proposal.md`` documentation
-research).  All reductions use only NPU-registered ops (``index_add``,
-``scatter_add_``, ``amax``, ``exp``); no ``scatter_reduce``/``cummax``/``argmax``
-are required, because this stack has no registered PrivateUse1 kernel for them.
+Semantics mirror DGL's documented per-destination behavior; this contract is
+exercised by ``test/graph_parity/test_graph_parity.py``.  ``edge_softmax``, the
+``copy_e_sum`` / ``copy_e_mean`` reductions, ``e_dot_v`` and ``in_degrees``
+execute through native AscendC kernels in ``ascend-kernel``.  Non-NPU
+tensors are rejected by the native operators instead of silently falling back to
+a CPU computation.
 
 This module intentionally does **not** replace the ``dgl`` package globally.
 Only the SE(3) graph path is rewired to it.
@@ -44,9 +46,28 @@ class DGLGraph:
         return self._src.shape[0]
 
     def in_degrees(self):
-        deg = torch.zeros(self.num_nodes, dtype=torch.long, device=self._dst.device)
-        deg.scatter_add_(0, self._dst, torch.ones_like(self._dst))
-        return deg
+        """DGL ``DGLGraph.in_degrees()``: incoming-edge count per node.
+
+        Degrees are the native per-destination reduction of an all-ones edge
+        message (``npu::copy_e_sum`` over the native adjacency preparation), so
+        no Torch ``scatter_add_``/``index_add`` graph operator is used.  The
+        result is ``int64`` of shape ``(num_nodes,)`` with an exact ``0`` for
+        every zero-degree node.  Non-NPU tensors are rejected instead of
+        silently falling back to a CPU computation.
+        """
+        if self._dst.device.type != "npu":
+            raise RuntimeError(
+                "in_degrees requires NPU tensors (no CPU fallback); got %s"
+                % (self._dst.device,)
+            )
+        from se3_transformer import graph_native
+
+        num_edges = int(self._dst.shape[0])
+        ones = torch.ones(
+            (num_edges, 1), dtype=torch.float32, device=self._dst.device
+        )
+        counts = graph_native.copy_e_sum(ones, self._dst, self.num_nodes)
+        return counts.reshape(self.num_nodes).to(torch.int64)
 
 
 def graph(edges, num_nodes):
@@ -56,37 +77,79 @@ def graph(edges, num_nodes):
 
 
 def copy_e_sum(g, msg):
-    """Sum edge features into destination nodes (``gspmm(..., 'copy_rhs', 'sum')``)."""
-    out = msg.new_zeros((g.num_nodes,) + tuple(msg.shape[1:]))
-    return out.index_add(0, g._dst, msg)
+    """Sum edge features into destination nodes (``gspmm(..., 'copy_e', 'sum')``).
+
+    Executes the native AscendC per-destination reduction on the NPU.  Non-NPU
+    tensors are rejected instead of silently falling back to a CPU computation.
+    """
+    if msg.device.type != "npu":
+        raise RuntimeError(
+            "copy_e_sum requires NPU tensors (no CPU fallback); got %s"
+            % (msg.device,)
+        )
+    from se3_transformer import graph_native
+
+    return graph_native.copy_e_sum(msg, g._dst, g.num_nodes)
 
 
 def copy_e_mean(g, msg):
-    """Mean edge features over destination nodes (zero-degree nodes -> 0)."""
-    out = copy_e_sum(g, msg)
-    deg = g.in_degrees().to(msg.dtype).clamp(min=1)
-    return out / deg.view((-1,) + (1,) * (msg.dim() - 1))
+    """Mean edge features over destination nodes (zero-degree nodes -> 0).
+
+    Executes the native AscendC per-destination reduction on the NPU.  Non-NPU
+    tensors are rejected instead of silently falling back to a CPU computation.
+    """
+    if msg.device.type != "npu":
+        raise RuntimeError(
+            "copy_e_mean requires NPU tensors (no CPU fallback); got %s"
+            % (msg.device,)
+        )
+    from se3_transformer import graph_native
+
+    return graph_native.copy_e_mean(msg, g._dst, g.num_nodes)
 
 
 def e_dot_v(g, key, query):
-    """``dot(edge_key, query[destination])`` reduced over the last dimension."""
-    q = query[g._dst]
-    return (key * q).sum(dim=-1, keepdim=True)
+    """``dot(edge_key, query[destination])`` reduced over the last dimension.
+
+    Delegates to the native AscendC per-edge ``e_dot_v`` kernel, which gathers
+    ``query[dst[e]]``, multiplies it with ``key[e]`` and reduces the last
+    dimension entirely on the NPU.  The result has DGL's output shape
+    ``key.shape[:-1] + (1,)``.  Non-NPU tensors are rejected instead of silently
+    falling back to a CPU computation.
+    """
+    if key.device.type != "npu" or query.device.type != "npu":
+        raise RuntimeError(
+            "e_dot_v requires NPU tensors (no CPU fallback); got key=%s query=%s"
+            % (key.device, query.device)
+        )
+    from se3_transformer import graph_native
+
+    return graph_native.e_dot_v(key, query, g._dst)
 
 
 def edge_softmax(g, logits, norm_by="dst"):
     """Softmax over incoming edges per destination node (DGL ``norm_by='dst'``).
 
-    Uses a shared shift before exponentiation and sums by destination node.
+    Delegates to the native AscendC ``edge_softmax`` kernel, which computes an
+    independent, stable **per-destination** softmax (per trailing feature/head
+    column) on the NPU.  There is no graph-wide shift and no denominator
+    ``tiny``/``eps`` salting: a destination whose logits are thousands below
+    another destination's still receives weights that sum to one, and
+    destinations with in-degree 0 produce no edges.  Non-NPU tensors are
+    rejected instead of silently falling back to a CPU computation.
     """
     if norm_by != "dst":
         raise NotImplementedError(
             "graph_compat.edge_softmax supports norm_by='dst' only"
         )
-    z = logits.amax(dim=0, keepdim=True)
-    e = torch.exp(logits - z)
-    denom = e.new_zeros((g.num_nodes,) + tuple(e.shape[1:])).index_add(0, g._dst, e)
-    return e / denom[g._dst].clamp_min(torch.finfo(e.dtype).tiny)
+    if logits.device.type != "npu":
+        raise RuntimeError(
+            "edge_softmax requires NPU tensors (no CPU fallback); got %s"
+            % (logits.device,)
+        )
+    from se3_transformer import graph_native
+
+    return graph_native.edge_softmax(logits, g._dst, g.num_nodes)
 
 
 class _Ops:
@@ -102,6 +165,7 @@ ops.e_dot_v = e_dot_v
 # Only used if GPooling is ever instantiated (not on the RFdiffusion/RF2 path).
 class AvgPooling:
     def __call__(self, g, feats):
+        # Native per-destination mean; zero-degree nodes are exactly 0.
         return copy_e_mean(g, feats)
 
 

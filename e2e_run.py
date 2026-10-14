@@ -18,12 +18,18 @@ The script never falls back to CPU silently: every stage is wrapped by a device
 guard (``e2e_support/sitecustomize.py``) that records whether models were moved
 onto an NPU, and the whole run aborts unless ``torch.npu.is_available()``.
 
-It records commands, exit codes, wall-clock timings, device evidence, weight
-hashes and artifacts for later inspection or comparison.
+It is intentionally not self-verifying against H100/A4000 references: it records
+commands, exit codes, wall-clock timings, device evidence, weight hashes and
+artifacts so the deterministic evaluator can do the acceptance checks.
 
-Usage (from the repository root)::
+The runner is release-independent: it never reads ``migration.yaml`` or any
+AutoEngineer task path.  The three external checkpoints are resolved from
+``--weights-dir``, then ``RFANTIBODY_WEIGHTS_DIR``, then ``<project>/weights``.
 
-    .venv/bin/python e2e_run.py --weights-dir /path/to/weights
+Usage (from the repository clone root)::
+
+    .venv/bin/python e2e_run.py --output-dir outputs/npu_chain
+    .venv/bin/python e2e_run.py --weights-dir /path/to/weights --final-step 1
 """
 
 from __future__ import annotations
@@ -48,6 +54,15 @@ GUARD_DIR = PROJECT_ROOT / "e2e_support"
 
 DESIGN_LOOPS = "L1:8-13,L2:7,L3:9-11,H1:7,H2:6,H3:5-13"
 HOTSPOTS = "T305,T456"
+
+# The three external checkpoints that make up the pipeline.  They are never
+# committed (``weights/`` is gitignored); resolve them from ``--weights-dir``,
+# then ``RFANTIBODY_WEIGHTS_DIR``, then ``<project>/weights``.
+CHECKPOINT_FILES = {
+    "rfdiffusion": "RFdiffusion_Ab.pt",
+    "proteinmpnn": "ProteinMPNN_v48_noise_0.2.pt",
+    "rf2": "RF2_ab.pt",
+}
 
 CPU_FALLBACK_MARKERS = (
     "running proteinmpnn on cpu",
@@ -95,13 +110,41 @@ def npu_preflight() -> dict[str, Any]:
     }
 
 
+def resolve_weights_dir(explicit: Path | None) -> Path:
+    """Locate the directory holding the three external checkpoints.
+
+    Resolution order: ``--weights-dir`` -> ``RFANTIBODY_WEIGHTS_DIR`` ->
+    ``<project>/weights``.  The first candidate that contains all three
+    checkpoints wins; otherwise the runner fails with a clear message.  This is
+    what keeps the runner independent of the AutoEngineer task directory.
+    """
+    candidates: list[Path] = []
+    if explicit is not None:
+        candidates.append(Path(explicit))
+    env_dir = os.environ.get("RFANTIBODY_WEIGHTS_DIR")
+    if env_dir:
+        candidates.append(Path(env_dir))
+    candidates.append(PROJECT_ROOT / "weights")
+
+    tried: list[str] = []
+    for candidate in candidates:
+        candidate = candidate.expanduser().resolve()
+        if all((candidate / name).is_file() for name in CHECKPOINT_FILES.values()):
+            return candidate
+        tried.append(str(candidate))
+    raise SystemExit(
+        "Cannot find the three required checkpoints "
+        f"({', '.join(CHECKPOINT_FILES.values())}). Looked in: {tried}. "
+        "Pass --weights-dir, set RFANTIBODY_WEIGHTS_DIR, or place them under "
+        f"{PROJECT_ROOT / 'weights'}."
+    )
+
+
 def resolve_weights(weights_dir: Path) -> tuple[Path, list[dict[str, Any]]]:
-    weights_dir = weights_dir.resolve()
+    weights_dir = Path(weights_dir).expanduser().resolve()
 
     expected = {
-        "rfdiffusion": weights_dir / "RFdiffusion_Ab.pt",
-        "proteinmpnn": weights_dir / "ProteinMPNN_v48_noise_0.2.pt",
-        "rf2": weights_dir / "RF2_ab.pt",
+        name: weights_dir / filename for name, filename in CHECKPOINT_FILES.items()
     }
     records = []
     for name, path in expected.items():
@@ -124,14 +167,16 @@ def resolve_weights(weights_dir: Path) -> tuple[Path, list[dict[str, Any]]]:
     return weights_dir, records
 
 
-def resolve_inputs(args: argparse.Namespace) -> dict[str, Path]:
-    """Use explicit inputs or the repository's bundled RSV example."""
+def resolve_inputs() -> dict[str, Path]:
+    """Resolve the RSV site 3 target and framework from the tracked test inputs."""
     local_dir = PROJECT_ROOT / "test" / "rfdiffusion" / "inputs_for_test"
-    target = args.target or local_dir / "rsv_site3.pdb"
-    framework = args.framework or local_dir / "hu-4D5-8_Fv.pdb"
+    target = local_dir / "rsv_site3.pdb"
+    framework = local_dir / "hu-4D5-8_Fv.pdb"
     for path in (target, framework):
         if not path.is_file():
-            raise SystemExit(f"Configured input PDB missing: {path}")
+            raise SystemExit(
+                f"Required input PDB missing from the repository test inputs: {path}"
+            )
     return {"target": target.resolve(), "framework": framework.resolve()}
 
 
@@ -279,11 +324,11 @@ def _looks_like_pdb(path: Path) -> bool:
 
 
 def _run(args: argparse.Namespace, output_dir: Path) -> int:
-    allow_download = args.allow_download
+    allow_download = bool(args.allow_download)
 
     hardware = npu_preflight()
-    weights_dir, weights = resolve_weights(args.weights_dir)
-    inputs = resolve_inputs(args)
+    weights_dir, weights = resolve_weights(resolve_weights_dir(args.weights_dir))
+    inputs = resolve_inputs()
 
     offline_env: dict[str, str] = {}
     if not allow_download:
@@ -463,15 +508,22 @@ def main() -> int:
     parser.add_argument(
         "--weights-dir",
         type=Path,
-        default=Path(os.environ.get("RFANTIBODY_WEIGHTS", PROJECT_ROOT / "weights")),
-        help="Directory containing the three model checkpoints (default: weights/).",
+        default=None,
+        help=(
+            "Directory containing RFdiffusion_Ab.pt, ProteinMPNN_v48_noise_0.2.pt "
+            "and RF2_ab.pt. Defaults to $RFANTIBODY_WEIGHTS_DIR, then "
+            "<project>/weights."
+        ),
     )
-    parser.add_argument("--target", type=Path, help="Target PDB (default: bundled RSV example).")
-    parser.add_argument("--framework", type=Path, help="Framework PDB (default: bundled Fv example).")
-    parser.add_argument("--allow-download", action="store_true")
+    parser.add_argument(
+        "--allow-download",
+        action="store_true",
+        default=False,
+        help="Allow HuggingFace/Transformers downloads (default: offline).",
+    )
     parser.add_argument("--num-designs", type=int, default=1)
     parser.add_argument("--diffuser-t", type=int, default=50)
-    parser.add_argument("--final-step", type=int, default=1)
+    parser.add_argument("--final-step", type=int, default=48)
     parser.add_argument("--seqs-per-struct", type=int, default=1)
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--num-recycles", type=int, default=10)

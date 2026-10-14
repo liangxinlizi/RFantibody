@@ -32,7 +32,7 @@ def main():
     
     # Determine which modules to test
     modules = []
-    all_modules = ['rfdiffusion', 'proteinmpnn', 'rf2', 'util', 'quiver']
+    all_modules = ['rfdiffusion', 'proteinmpnn', 'rf2', 'util', 'quiver', 'graph_parity']
     if args.module == 'all':
         modules = all_modules
     else:

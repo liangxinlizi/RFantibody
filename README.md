@@ -14,6 +14,8 @@ image. From this repository, install only the other Python dependencies into
 an isolated environment:
 
 ```bash
+git clone --branch feat/ascend-npu-rfantibody-goal https://github.com/liangxinlizi/RFantibody.git
+cd RFantibody
 python3 -m venv --system-site-packages .venv
 PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
 PIP_TRUSTED_HOST=mirrors.aliyun.com \
@@ -23,6 +25,19 @@ PIP_TRUSTED_HOST=mirrors.aliyun.com \
 .venv/bin/python -m pip install --no-deps -e .
 ```
 
+Build the native AscendC graph operators against the installed CANN toolkit:
+
+```bash
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+bash ascend-kernel/build.sh
+```
+
+The NPU path uses native kernels for destination-wise softmax, edge sum and
+mean, incoming-degree counts, average pooling, and edge-to-node dot products.
+To run the graph parity
+tests against an independent CPU reference, install `dgl==1.1.3` into `.venv`
+and run `.venv/bin/python -m test.run_tests`.
+
 The end-to-end runner can be launched from a standalone clone. Place
 `RFdiffusion_Ab.pt`, `ProteinMPNN_v48_noise_0.2.pt` and `RF2_ab.pt` in
 `weights/`, or pass their directory with `--weights-dir`. The bundled RSV site 3
@@ -30,16 +45,16 @@ target and hu-4D5-8 Fv framework are used by default. Run all three models on
 an NPU with:
 
 ```bash
-cd RFantibody
 .venv/bin/python e2e_run.py
 ```
 
 Use `--target`, `--framework`, `--weights-dir` and `--output-dir` for other
 inputs or locations. The default output directory is `outputs/npu_chain`.
 The runner writes each stage's PDB, log and device evidence, plus an
-`e2e_result.json` summary. No AutoEngineer task directory or `migration.yaml`
-is needed. The demonstrated full run had exit code 0 for all three stages and
-RF2 completed 11 cycles.
+`e2e_result.json` summary. The accepted native-graph run completed all three
+stages on NPU, passed 49 graph tests and independent DGL CPU parity, and
+completed 11 RF2 cycles. The runner reads no AutoEngineer task directory or
+`migration.yaml`.
 
 ![](https://github.com/RosettaCommons/RFantibody/blob/main/github_image.png)
 

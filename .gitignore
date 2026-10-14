@@ -1,6 +1,10 @@
 
 !.gitignore
 build
+ascend-kernel/install/
+ascend-kernel/python/ascend_kernel.egg-info/
+ascend-kernel/python/ascend_kernel/*.so
+export_only_prof_dir/
 rfantibody.egg-info
 __pycache__
 weights
@@ -19,3 +23,6 @@ dist
 scratch
 .DS_Store
 .devcontainer
+.venv/
+
+fusion_result.json
