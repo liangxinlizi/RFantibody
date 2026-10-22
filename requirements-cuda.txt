@@ -1,0 +1,23 @@
+# CUDA (NVIDIA GPU) installation path for RFantibody.
+#
+# This preserves the original upstream CUDA dependency set (torch 2.3 + cu118
+# and the matching cu118 DGL wheel) after the default dependency metadata was
+# made accelerator-agnostic for the Ascend NPU port.
+#
+# Usage (Python 3.10):
+#   python -m venv .venv-cuda
+#   .venv-cuda/bin/python -m pip install -r requirements-cuda.txt
+#   .venv-cuda/bin/python -m pip install --no-deps -e .
+#
+# The PyTorch cu118 index is the primary index so that torch 2.3.* resolves to
+# the +cu118 build. Public PyPI remains available for the remaining packages.
+--index-url https://download.pytorch.org/whl/cu118
+--extra-index-url https://pypi.org/simple
+
+torch==2.3.*
+torchaudio==2.3.*
+torchvision==0.18.*
+cuda-python==11.8
+
+# CUDA DGL matching the cu118 torch build (upstream pinned wheel).
+https://data.dgl.ai/wheels/torch-2.3/cu118/dgl-2.4.0%2Bcu118-cp310-cp310-manylinux1_x86_64.whl

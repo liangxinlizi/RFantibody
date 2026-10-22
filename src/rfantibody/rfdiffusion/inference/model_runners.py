@@ -9,6 +9,7 @@ from icecream import ic
 from omegaconf import DictConfig, OmegaConf
 
 import rfantibody.rfdiffusion.util
+from rfantibody.device import get_accelerator_device
 from rfantibody.rfdiffusion.chemical import INIT_CRDS, seq2chars
 from rfantibody.rfdiffusion.contigs import ContigMap
 from rfantibody.rfdiffusion.diffusion import Diffuser
@@ -46,10 +47,10 @@ class Sampler:
 
     def initialize(self, conf: DictConfig):
         self._log = logging.getLogger(__name__)
-        if torch.cuda.is_available():
-            self.device = torch.device('cuda')
-        else:
-            self.device = torch.device('cpu')
+        # Genuine accelerator selection: Ascend NPU first, then CUDA, and never a
+        # silent CPU fallback for the product path (``require_accelerator=True``
+        # raises instead of returning torch.device('cpu')).
+        self.device = get_accelerator_device(index=0, require_accelerator=True)
         needs_model_reload = not self.initialized or conf.inference.ckpt_override_path != self._conf.inference.ckpt_override_path
 
         # Assign config to Sampler

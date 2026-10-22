@@ -123,6 +123,69 @@ This should display the RFdiffusion help message with available options.
 
 ---
 
+## Ascend NPU Installation
+
+RFantibody can also run on Huawei Ascend NPUs through the vendor PyTorch stack
+(`torch` + `torch_npu` + CANN).  The vendor stack is treated as read-only: the
+project environment inherits it instead of reinstalling PyTorch.
+
+### 1. Create the environment
+
+```bash
+# Python 3.10 with the validated torch/torch_npu/CANN installation available
+uv venv --python 3.10 --system-site-packages .venv
+.venv/bin/python -m pip install -e ".[test]"
+```
+
+`[test]` installs the test tooling and the CPU DGL build that is used as the
+independent reference for graph-operator parity.  `.[npu]` is intentionally
+empty: `torch`, `torch_npu` and CANN come from the system installation.  Do not
+run `uv sync` in this environment, because it would install a PyPI torch wheel
+on top of the vendor stack.
+
+### 2. Point RFantibody at the external weights
+
+The four checkpoints are not stored in the repository.  Resolve them with the
+documented configuration instead of copying them into the tree:
+
+```bash
+export RFANTIBODY_ROOT=$PWD                     # repository root (optional)
+export RFANTIBODY_WEIGHTS=/path/to/weights      # directory with the .pt files
+export RFANTIBODY_SCRIPTS=$PWD/scripts          # inference scripts (optional)
+.venv/bin/rfdiffusion --help
+```
+
+Individual inference commands also accept an explicit `--weights` path.
+
+### 3. Run the tests and the end-to-end pipeline
+
+```bash
+.venv/bin/python -m pytest test -ra
+.venv/bin/python e2e_run.py            # RFdiffusion -> ProteinMPNN -> RF2 on NPU
+```
+
+The repository scripts and the Quiver tests invoke `uv run <command>` from
+arbitrary working directories.  To make those invocations use the installed
+project environment (rather than creating a new one), export:
+
+```bash
+export UV_PROJECT=$PWD
+export UV_NO_SYNC=1
+```
+
+### CUDA installation
+
+The original CUDA path is preserved in `requirements-cuda.txt`
+(torch 2.3 + cu118 and the matching cu118 DGL wheel):
+
+```bash
+python -m venv .venv-cuda
+.venv-cuda/bin/python -m pip install -r requirements-cuda.txt
+.venv-cuda/bin/python -m pip install --no-deps -e .
+```
+
+---
+
 ## Docker Installation (Alternative)
 
 Docker provides a containerized environment that isolates RFantibody from your host system. This can be useful for:
