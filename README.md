@@ -157,6 +157,17 @@ export RFANTIBODY_SCRIPTS=$PWD/scripts          # inference scripts (optional)
 
 Individual inference commands also accept an explicit `--weights` path.
 
+If you prefer the repository's default weight location, link the supplied
+directory instead of copying it (it is git-ignored):
+
+```bash
+ln -s /path/to/weights weights      # or: export RFANTIBODY_WEIGHTS=/path/to/weights
+```
+
+The test suite selects the versioned `H100_references` set on a genuine Ascend
+NPU (`test/util/device_selection.py`) and keeps the original comparison
+thresholds; on an A4000/H100 it keeps selecting the matching CUDA reference set.
+
 ### 3. Run the tests and the end-to-end pipeline
 
 ```bash

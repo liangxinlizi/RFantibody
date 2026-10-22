@@ -16,10 +16,16 @@ export CUBLAS_WORKSPACE_CONFIG=:4096:8
 export TORCH_DETERMINISTIC=1
 export TORCH_USE_CUDA_DSA=0
 
+# Resolve the supplied old-checkpoint weights through the documented
+# configuration instead of hardcoding a path inside the repository:
+# ``RFANTIBODY_WEIGHTS`` (see README) or the repository default ``weights/``.
+# No checkpoint is copied into the tree.
+WEIGHTS_DIR="${RFANTIBODY_WEIGHTS:-$PROJECT_DIR/weights}"
+
 uv run rf2 \
     --input-json "$TEST_DIR/inputs_for_test/rfab_targets.json" \
     --output-dir "$OUTPUT_DIR" \
-    --weights "$PROJECT_DIR/weights/RFab_noframework-nosidechains-5-10-23_trainingparamsadded.pt" \
+    --weights "$WEIGHTS_DIR/RFab_noframework-nosidechains-5-10-23_trainingparamsadded.pt" \
     --num-recycles 10 \
     --no-cautious \
     --seed 42 \

@@ -13,6 +13,7 @@ import pytest
 import torch
 
 from rfantibody.config import PathConfig
+from test.util.device_selection import npu_device_name, reference_set_dir
 
 # Option is defined in the root conftest.py
 
@@ -22,7 +23,15 @@ _test_paths = PathConfig.get_test_paths('rf2')
 
 @pytest.fixture(scope="session", autouse=True)
 def check_gpu():
-    """Check if CUDA is available and we're on a supported GPU"""
+    """Require a supported accelerator: genuine Ascend NPU, A4000 or H100."""
+    npu_name = npu_device_name()
+    if npu_name is not None:
+        # Genuine torch_npu device: run the original suites on the NPU and use
+        # the versioned H100 references at the original thresholds.
+        print(f"Running tests on {npu_name} NPU")
+        print("Using H100-specific reference outputs")
+        return
+
     if not torch.cuda.is_available():
         pytest.skip("No GPU found, tests require a supported GPU (A4000 or H100)")
 
@@ -69,22 +78,12 @@ def output_dir(request):
 @pytest.fixture(scope="session")
 def ref_dir():
     """
-    Provide the reference directory path based on GPU type.
+    Provide the reference directory path based on the active accelerator.
 
-    Uses GPU-specific references when running on a supported GPU (A4000 or H100).
+    Uses the versioned H100 references on a genuine Ascend NPU and the
+    GPU-specific references on a supported A4000/H100, exactly as before.
     """
-    base_ref_dir = _test_paths['references']
-
-    # Check which GPU we're running on
-    if torch.cuda.is_available():
-        gpu_info = torch.cuda.get_device_properties(0)
-        if 'A4000' in gpu_info.name:
-            return str(base_ref_dir / "A4000_references")
-        elif 'H100' in gpu_info.name:
-            return str(base_ref_dir / "H100_references")
-
-    # Default reference dir for other GPUs
-    return str(base_ref_dir)
+    return str(reference_set_dir(_test_paths['references']))
 
 
 @pytest.fixture(scope="session")
