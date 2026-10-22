@@ -196,3 +196,34 @@ def run_cpu_only() -> torch.Tensor:
     """Negative instrumentation control: a window with no device work."""
     x = torch.arange(8, dtype=torch.float32)
     return x * 2.0
+
+
+def run_rf2_topk_graph():
+    """Production RF2 graph construction on ``npu:0`` (public API only).
+
+    Builds the graph through ``rfantibody.rf2.network.util_module.make_topk_graph``
+    with NPU tensors, i.e. the same builder the RF2 product path uses
+    (``rf2/network/Track_module.py``, which passes the C-alpha trace
+    ``xyz[:, :, 1, :]``, i.e. ``[B, L, 3]``).  Issues exactly one native AscendC
+    launch (``edge_topology``, eagerly inside ``AscendGraph.__init__``) and stores
+    the ``rel_pos`` edge feature the SE3 model consumes.
+    """
+    if not torch.npu.is_available():
+        raise RuntimeError("torch.npu is unavailable")
+    device = torch.device("npu:0")
+    from rfantibody.rf2.network.util_module import make_topk_graph
+
+    batch, length = 1, 48
+    positions = torch.arange(length, dtype=torch.float32, device=device)
+    xyz = torch.stack(
+        [
+            9.0 * torch.sin(0.31 * positions) + 0.05 * positions,
+            9.0 * torch.cos(0.27 * positions) - 0.03 * positions,
+            2.0 * torch.sin(0.13 * positions + 0.7),
+        ],
+        dim=-1,
+    ).reshape(batch, length, 3)
+    pair = torch.zeros(batch, length, length, 8, dtype=torch.float32, device=device)
+    residue_index = torch.arange(length, dtype=torch.int64, device=device).reshape(batch, length)
+    graph, edge_features = make_topk_graph(xyz, pair, residue_index)
+    return graph.edata["rel_pos"].to(torch.float32), edge_features.to(torch.float32)

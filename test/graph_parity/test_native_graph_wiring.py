@@ -38,6 +38,22 @@ inspected, and never relaxed afterwards):
   ``__no_such_kernel__`` resolving nowhere.
 
 Passing this wiring test does not by itself establish full-model parity.
+
+RF2 stage wiring (same fixed criteria, declared before any candidate result is
+inspected): the three production RF2 graph builders
+(``rf2/network/util_module.py``: ``make_graph_w_2nodes``, ``make_full_graph``,
+``make_topk_graph``) must return the native graph on ``npu:0``, and their
+``edges()``/``num_nodes()``/``num_edges()``/``in_degrees()``/``batch_num_nodes()``
+and stored ``edata['rel_pos']`` must equal **real DGL 1.1.3 on CPU** built by the
+same builder from the same CPU tensors (``torch.equal``), with the returned edge
+features equal at ``atol=1e-5``/``rtol=1e-4`` and all finite.  One public-API
+production builder call in a fresh interpreter must additionally produce exactly
+one ``KERNEL_*`` hardware task event and exactly one report row named
+``edge_topology`` (the eager native topology launch of ``AscendGraph``), with the
+negative control token resolving nowhere.  A source-level guard pins that the RF2
+product sources construct graphs only through ``make_graph`` and that the RF2
+product entry selects its device through ``get_accelerator_device`` instead of a
+CUDA-or-CPU fallback.
 """
 
 from __future__ import annotations
@@ -139,6 +155,7 @@ _EVIDENCE = {
     "artifacts": {},
     "metadata_cases": [],
     "dispatch_cases": [],
+    "rf2_builder_cases": [],
     "route": {},
 }
 
@@ -188,7 +205,11 @@ def _quantized(rows, width, seed):
 def _flush_evidence():
     """Write the wiring evidence table even if a case fails."""
     yield
-    if not _EVIDENCE["metadata_cases"] and not _EVIDENCE["dispatch_cases"]:
+    if (
+        not _EVIDENCE["metadata_cases"]
+        and not _EVIDENCE["dispatch_cases"]
+        and not _EVIDENCE["rf2_builder_cases"]
+    ):
         if not _EVIDENCE["route"]:
             return
     _EVIDENCE_PATH.mkdir(parents=True, exist_ok=True)
@@ -891,3 +912,468 @@ def test_graph_build_route_evidence(native_graph_ops, npu_device, tmp_path):
         f"negative control token {report.get('negative_token')!r} resolved to "
         f"{report.get('negative_resolved')}"
     )
+
+
+# --------------------------------------------------------------------------- #
+# 4. RF2 production graph builders on the native route
+# --------------------------------------------------------------------------- #
+_RF2_BUILDER_CASES = ("make_graph_w_2nodes", "make_full_graph", "make_topk_graph")
+_RF2_BUILDER_PROVENANCE = {
+    "make_graph_w_2nodes": (
+        "rfantibody.rf2.network.util_module.make_graph_w_2nodes (two-node BB/SC graph)"
+    ),
+    "make_full_graph": (
+        "rfantibody.rf2.network.util_module.make_full_graph (all-pairs "
+        "sequence-separation graph)"
+    ),
+    "make_topk_graph": (
+        "rfantibody.rf2.network.util_module.make_topk_graph (the builder the RF2 "
+        "product path calls from rf2/network/Track_module.py)"
+    ),
+}
+_RF2_TOP_ROUTE_CASE = "test.graph_parity.route_case:run_rf2_topk_graph"
+_RF2_TOP_ROUTE_EXPECTED_KERNELS = ("edge_topology",)
+_RF2_TOP_ROUTE_EXPECTED_EVENTS = 1
+
+
+def _rf2_positions(batch, length, atoms):
+    """Deterministic, non-degenerate per-atom coordinates (no random input)."""
+    positions = torch.arange(length, dtype=torch.float32)
+    base = torch.stack(
+        [
+            9.0 * torch.sin(0.31 * positions) + 0.05 * positions,
+            9.0 * torch.cos(0.27 * positions) - 0.03 * positions,
+            2.0 * torch.sin(0.13 * positions + 0.7),
+        ],
+        dim=-1,
+    )  # [L, 3]
+    offsets = torch.arange(atoms, dtype=torch.float32).reshape(atoms, 1) * 1.5
+    xyz = base.reshape(1, length, 1, 3) + offsets.reshape(1, 1, atoms, 1)
+    return xyz.expand(batch, length, atoms, 3).contiguous()
+
+
+def _rf2_builder_inputs(builder_name):
+    """Deterministic inputs for one production RF2 graph builder.
+
+    The atom axis follows each builder's *production call site*, which is the
+    executable contract (the builders' own docstrings say ``(B, L, 3, 3)`` for
+    every builder, but only ``make_full_graph`` keeps the all-atom tensor):
+
+    * ``make_graph_w_2nodes`` indexes ``xyz[:, :, 0]`` and ``xyz[:, :, 1]``, so it
+      needs the two node atoms -> ``xyz [B, L, 2, 3]``;
+    * ``make_full_graph`` subtracts whole atom blocks ``xyz[b, j, :]``;
+    * ``make_topk_graph`` is called by ``rf2/network/Track_module.py`` with the
+      C-alpha trace ``xyz[:, :, 1, :]`` -> ``xyz [B, L, 3]``, and its
+      ``torch.cdist(xyz, xyz)`` requires that 3-D form.
+    """
+    if builder_name == "make_graph_w_2nodes":
+        batch, length, atoms, pair_width, jump = 1, 40, 2, 8, True
+    elif builder_name == "make_full_graph":
+        batch, length, atoms, pair_width, jump = 1, 64, 3, 8, True
+    elif builder_name == "make_topk_graph":
+        batch, length, atoms, pair_width, jump = 1, 120, 1, 8, False
+    else:  # pragma: no cover - parametrisation is fixed above
+        raise ValueError(f"unknown RF2 builder {builder_name!r}")
+
+    xyz = _rf2_positions(batch, length, atoms)
+    if builder_name == "make_topk_graph":
+        # Production C-alpha trace: Track_module passes xyz[:, :, 1, :] -> [B, L, 3].
+        xyz = xyz.reshape(batch, length, 3)
+    pair = _quantized(batch * length * length, pair_width, 11000 + length).reshape(
+        batch, length, length, pair_width
+    )
+    residue_index = torch.arange(length, dtype=torch.int64).reshape(batch, length)
+    if jump:
+        # A chain offset keeps the two halves of the sequence separated, so the
+        # sequential-neighbour condition of the builder behaves like a multi-chain
+        # input rather than a single contiguous chain.
+        residue_index = residue_index.clone()
+        residue_index[:, length // 2 :] += 100
+    return {"xyz": xyz, "pair": pair, "idx": residue_index}
+
+
+def _record_rf2_builder(record):
+    _EVIDENCE["rf2_builder_cases"].append(record)
+
+
+@pytest.mark.parametrize("builder_name", _RF2_BUILDER_CASES)
+def test_rf2_graph_builders_use_native_route(
+    native_graph_ops, npu_device, builder_name
+):
+    """The production RF2 builders return the native graph on ``npu:0``.
+
+    Each builder is executed twice from the *same* deterministic input tensors:
+    once with NPU tensors (candidate) and once with CPU tensors (independent
+    reference, which yields a real ``dgl`` graph).  Metadata, stored
+    ``edata['rel_pos']`` and the returned edge features must agree.
+    """
+    from rfantibody.rf2.network import util_module
+
+    builder = getattr(util_module, builder_name)
+    inputs = _rf2_builder_inputs(builder_name)
+    reference_graph, reference_edge_features = builder(
+        **{key: value.clone() for key, value in inputs.items()}
+    )
+    graph, edge_features = builder(
+        **{key: value.to(npu_device) for key, value in inputs.items()}
+    )
+    torch.npu.synchronize()
+
+    assert isinstance(reference_graph, dgl.DGLGraph), (
+        f"{builder_name}: the CPU reference is not a real dgl graph "
+        f"({type(reference_graph)!r})"
+    )
+    assert not bool(getattr(reference_graph, "is_ascend_native_graph", False)), (
+        f"{builder_name}: the CPU reference must never be the native candidate"
+    )
+    assert bool(getattr(graph, "is_ascend_native_graph", False)), (
+        f"{builder_name}: the production builder did not return the native graph "
+        "on npu:0 (missing is_ascend_native_graph marker)"
+    )
+    assert graph.device.type == "npu", f"{builder_name}: graph device {graph.device}"
+
+    src, dst = graph.edges()
+    assert src.device.type == "npu" and dst.device.type == "npu", (
+        f"{builder_name}: edges() returned non-NPU tensors {src.device}, {dst.device}"
+    )
+    assert src.dtype == dst.dtype == torch.int64
+    reference_src, reference_dst = reference_graph.edges()
+    edges_exact = bool(
+        torch.equal(src.cpu(), reference_src) and torch.equal(dst.cpu(), reference_dst)
+    )
+    assert edges_exact, (
+        f"{builder_name}: native edges differ from the real dgl CPU graph built by "
+        "the same builder"
+    )
+    assert int(graph.num_nodes()) == int(reference_graph.num_nodes()), (
+        f"{builder_name}: num_nodes {int(graph.num_nodes())} != "
+        f"{int(reference_graph.num_nodes())}"
+    )
+    assert int(graph.num_edges()) == int(reference_graph.num_edges()), (
+        f"{builder_name}: num_edges {int(graph.num_edges())} != "
+        f"{int(reference_graph.num_edges())}"
+    )
+
+    degrees = graph.in_degrees()
+    assert degrees.device.type == "npu", f"{builder_name}: degrees {degrees.device}"
+    assert degrees.dtype == torch.int64
+    assert torch.equal(degrees.cpu(), reference_graph.in_degrees()), (
+        f"{builder_name}: native in_degrees differ from the real dgl CPU graph"
+    )
+
+    batch_nodes = graph.batch_num_nodes()
+    assert batch_nodes.device.type == "npu"
+    assert batch_nodes.dtype == torch.int64
+    assert torch.equal(batch_nodes.cpu(), reference_graph.batch_num_nodes()), (
+        f"{builder_name}: batch_num_nodes differ from the real dgl CPU graph"
+    )
+
+    stored = graph.edata["rel_pos"]
+    reference_rel_pos = reference_graph.edata["rel_pos"]
+    assert stored.device.type == "npu", f"{builder_name}: rel_pos {stored.device}"
+    assert stored.dtype == reference_rel_pos.dtype == torch.float32
+    assert tuple(stored.shape) == tuple(reference_rel_pos.shape), (
+        f"{builder_name}: rel_pos shape {tuple(stored.shape)} != "
+        f"{tuple(reference_rel_pos.shape)}"
+    )
+    rel_pos_exact = bool(torch.equal(stored.cpu(), reference_rel_pos.cpu()))
+    assert rel_pos_exact, (
+        f"{builder_name}: stored edata['rel_pos'] differs from the value the "
+        "production builder stores on a real dgl CPU graph"
+    )
+
+    assert edge_features.device.type == "npu", (
+        f"{builder_name}: returned edge features are on {edge_features.device}"
+    )
+    assert tuple(edge_features.shape) == tuple(reference_edge_features.shape), (
+        f"{builder_name}: edge feature shape {tuple(edge_features.shape)} != "
+        f"{tuple(reference_edge_features.shape)}"
+    )
+    cand, ref, max_abs, max_rel, outside = _errors(
+        edge_features, reference_edge_features
+    )
+    finite = _all_finite(edge_features, reference_edge_features)
+    torch.testing.assert_close(
+        edge_features.cpu(), reference_edge_features, atol=PARITY_ATOL, rtol=PARITY_RTOL
+    )
+    assert outside == 0 and finite, (
+        f"{builder_name}: {outside} edge-feature element(s) outside atol="
+        f"{PARITY_ATOL} + rtol={PARITY_RTOL} or a non-finite value"
+    )
+
+    zero_nodes = [
+        node
+        for node in range(int(reference_graph.num_nodes()))
+        if int(reference_graph.in_degrees()[node]) == 0
+    ]
+    _record_rf2_builder(
+        {
+            "case": builder_name,
+            "description": _RF2_BUILDER_PROVENANCE[builder_name],
+            "provenance": {
+                "builder": (
+                    "rfantibody.rf2.network.util_module." + builder_name
+                ),
+                "product_call_site": (
+                    "src/rfantibody/rf2/network/Track_module.py (make_topk_graph) "
+                    "and the RF2 SE3 graph consumers"
+                ),
+                "device_dispatch": (
+                    "rfantibody.graph_factory.make_graph: npu -> AscendGraph, "
+                    "cpu/cuda -> dgl.graph(...).to(device)"
+                ),
+            },
+            "shapes": {
+                "xyz": list(inputs["xyz"].shape),
+                "pair": list(inputs["pair"].shape),
+                "idx": list(inputs["idx"].shape),
+                "edges_src": list(src.shape),
+                "edges_dst": list(dst.shape),
+                "rel_pos": list(stored.shape),
+                "edge_features": list(edge_features.shape),
+                "in_degrees": list(degrees.shape),
+                "batch_num_nodes": list(batch_nodes.shape),
+            },
+            "dtypes": {
+                "xyz": str(inputs["xyz"].dtype),
+                "pair": str(inputs["pair"].dtype),
+                "idx": str(inputs["idx"].dtype),
+                "src": str(src.dtype),
+                "dst": str(dst.dtype),
+                "rel_pos": str(stored.dtype),
+                "edge_features": str(edge_features.dtype),
+                "in_degrees": str(degrees.dtype),
+            },
+            "devices": {
+                "candidate_graph": str(graph.device),
+                "candidate_edge_features": str(edge_features.device),
+                "reference_graph": str(reference_graph.device),
+                "reference_identity": (
+                    "real dgl {} on CPU, built by the same production builder from "
+                    "the same CPU tensors; never the candidate".format(
+                        dgl.__version__
+                    )
+                ),
+            },
+            "num_nodes": {
+                "candidate": int(graph.num_nodes()),
+                "reference": int(reference_graph.num_nodes()),
+            },
+            "num_edges": {
+                "candidate": int(graph.num_edges()),
+                "reference": int(reference_graph.num_edges()),
+            },
+            "zero_in_degree_nodes": zero_nodes,
+            "input_sha256": {
+                "xyz": _tensor_digest(inputs["xyz"]),
+                "pair": _tensor_digest(inputs["pair"]),
+                "idx": _tensor_digest(inputs["idx"]),
+            },
+            "output_sha256": {
+                "edges_src": _tensor_digest(src),
+                "edges_dst": _tensor_digest(dst),
+                "rel_pos": _tensor_digest(stored),
+                "in_degrees": _tensor_digest(degrees),
+                "edge_features": _tensor_digest(edge_features),
+                "reference_edge_features": _tensor_digest(reference_edge_features),
+            },
+            "edges_exact_equal": edges_exact,
+            "in_degrees_exact_equal": bool(
+                torch.equal(degrees.cpu(), reference_graph.in_degrees())
+            ),
+            "batch_num_nodes_exact_equal": bool(
+                torch.equal(batch_nodes.cpu(), reference_graph.batch_num_nodes())
+            ),
+            "rel_pos_exact_equal": rel_pos_exact,
+            "edge_features_max_abs_error": max_abs,
+            "edge_features_max_rel_error": max_rel,
+            "edge_features_elements_outside_atol_plus_rtol": outside,
+            "all_finite": finite,
+            "non_32_byte_aligned_rel_pos": bool(
+                (int(stored.shape[-1]) * 4) % 32 != 0
+            ),
+            "tolerances": {"atol": PARITY_ATOL, "rtol": PARITY_RTOL},
+            "passed": True,
+        }
+    )
+
+
+def test_rf2_builder_route_evidence(native_graph_ops, npu_device, tmp_path):
+    """The production RF2 builder executes one native ``edge_topology`` kernel."""
+    del native_graph_ops, npu_device  # the route case requires its own device
+
+    hardware = route_evidence._run_measurement(
+        "hardware", _RF2_TOP_ROUTE_CASE, tmp_path / "hardware"
+    )
+    report = route_evidence._run_measurement(
+        "report", _RF2_TOP_ROUTE_CASE, tmp_path / "report"
+    )
+
+    artifacts = report.get("profile_artifacts") or {}
+    resolved = {
+        name: route_evidence.resolve_token(artifacts, name)
+        for name in _RF2_TOP_ROUTE_EXPECTED_KERNELS
+    }
+    op_names = list(report.get("op_names") or [])
+    kernel_names = list(report.get("kernel_names") or [])
+    ai_core_rows = report.get("ai_core_rows") or {}
+
+    route_record = {
+        "case": _RF2_TOP_ROUTE_CASE,
+        "candidate": (
+            "rfantibody.rf2.network.util_module.make_topk_graph(xyz, pair, idx) "
+            "on npu:0, i.e. the production RF2 builder, which constructs the "
+            "graph through rfantibody.graph_factory.make_graph"
+        ),
+        "expected_launches": _RF2_TOP_ROUTE_EXPECTED_EVENTS,
+        "expected_kernel_names": list(_RF2_TOP_ROUTE_EXPECTED_KERNELS),
+        "isolation": (
+            "one fresh interpreter per measurement "
+            "(route_evidence._run_measurement -> "
+            "python -m test.graph_parity.route_evidence --mode hardware|report)"
+        ),
+        "hardware_channel": {
+            "profiler_level": hardware.get("profiler_level"),
+            "hardware_event_count": hardware.get("hardware_event_count"),
+            "task_counts": hardware.get("task_counts"),
+            "events": hardware.get("events"),
+            "trace": hardware.get("trace"),
+            "profile_artifacts": hardware.get("profile_artifacts"),
+            "command": hardware.get("command"),
+            "exit_code": hardware.get("exit_code"),
+            "log": hardware.get("log"),
+            "versions": hardware.get("versions"),
+        },
+        "report_channel": {
+            "profiler_level": report.get("profiler_level"),
+            "op_names": op_names,
+            "kernel_names": kernel_names,
+            "ai_core_op_summary_rows": len(ai_core_rows.get("op_summary") or []),
+            "ai_core_task_time_rows": len(ai_core_rows.get("task_time") or []),
+            "resolved": {
+                name: {
+                    "names": resolved[name]["names"],
+                    "channels": resolved[name]["channels"],
+                    "rows": resolved[name]["rows"],
+                }
+                for name in _RF2_TOP_ROUTE_EXPECTED_KERNELS
+            },
+            "negative_token": report.get("negative_token"),
+            "negative_resolved": report.get("negative_resolved"),
+            "trace": report.get("trace"),
+            "profile_artifacts": artifacts,
+            "command": report.get("command"),
+            "exit_code": report.get("exit_code"),
+            "log": report.get("log"),
+            "versions": report.get("versions"),
+        },
+        "written_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    _EVIDENCE_PATH.mkdir(parents=True, exist_ok=True)
+    (_EVIDENCE_PATH / "rf2_graph_build_route_evidence.json").write_text(
+        json.dumps(route_record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    # Channel 1: the production builder window issues one native hardware task.
+    assert hardware.get("hardware_event_count") == _RF2_TOP_ROUTE_EXPECTED_EVENTS, (
+        "expected exactly "
+        f"{_RF2_TOP_ROUTE_EXPECTED_EVENTS} KERNEL_* hardware task event for the "
+        "RF2 graph-construction launch, got "
+        f"{hardware.get('hardware_event_count')}: "
+        f"{json.dumps(hardware.get('task_counts'), sort_keys=True)} "
+        f"(trace: {hardware.get('trace')})"
+    )
+    assert hardware.get("task_counts"), "hardware channel recorded no task counts"
+    assert all(
+        str(key).split("|")[-1].startswith("KERNEL_")
+        for key in hardware["task_counts"]
+    ), f"non-hardware task type counted: {hardware['task_counts']}"
+
+    # Channel 2: the vendor report names the kernel of this bundle exactly once.
+    # The production builder also runs builtin torch ops (``cdist``/``topk``/
+    # ``scatter_``/indexing); this CANN build records those device tasks as
+    # ``aclnn*`` with task type ``N/A`` (measured in the accepted route-control
+    # evidence), so the native kernel is asserted by identity and by a unique
+    # name row rather than by an exact set of all report names.
+    for name in _RF2_TOP_ROUTE_EXPECTED_KERNELS:
+        assert name in op_names, (
+            f"op_summary AI_CORE names are {op_names}, expected {name!r} to be "
+            "among them"
+        )
+        assert name in kernel_names, (
+            f"task_time AI_CORE names are {kernel_names}, expected {name!r} to be "
+            "among them"
+        )
+    for name in _RF2_TOP_ROUTE_EXPECTED_KERNELS:
+        op_rows = [
+            row
+            for row in (ai_core_rows.get("op_summary") or [])
+            if str(row.get("Op Name", "")) == name
+        ]
+        task_rows = [
+            row
+            for row in (ai_core_rows.get("task_time") or [])
+            if str(row.get("kernel_name", "")) == name
+        ]
+        assert len(op_rows) == 1, (
+            f"expected exactly one AI_CORE op_summary row named {name!r} for the "
+            f"single native launch, got {len(op_rows)}"
+        )
+        assert len(task_rows) == 1, (
+            f"expected exactly one AI_CORE task_time row named {name!r} for the "
+            f"single native launch, got {len(task_rows)}"
+        )
+        assert resolved[name]["names"], (
+            f"kernel name {name!r} did not resolve in the raw vendor artefacts: "
+            f"{artifacts}"
+        )
+        assert resolved[name]["channels"], (
+            f"kernel name {name!r} resolved without a channel: {resolved[name]}"
+        )
+    assert report.get("negative_resolved") == [], (
+        f"negative control token {report.get('negative_token')!r} resolved to "
+        f"{report.get('negative_resolved')}"
+    )
+
+
+def test_rf2_product_path_has_no_dgl_or_cpu_selection():
+    """Cheap route regression guard on the RF2 product sources.
+
+    The hardware proof of the RF2 route is ``test_rf2_builder_route_evidence``;
+    this test only pins the source-level contract, so a later edit cannot quietly
+    restore bare ``dgl.graph(...)`` construction in the RF2 builders or the
+    CUDA-or-CPU device selection in the RF2 product entry.
+    """
+    def _read(relative_path):
+        return (_PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+    util_module = _read("src/rfantibody/rf2/network/util_module.py")
+    assert "dgl.graph(" not in util_module, (
+        "src/rfantibody/rf2/network/util_module.py still constructs a bare dgl "
+        "graph; RF2 must build graphs through rfantibody.graph_factory.make_graph"
+    )
+    assert "make_graph(" in util_module, (
+        "src/rfantibody/rf2/network/util_module.py does not call the shared "
+        "graph factory"
+    )
+    for relative_path in (
+        "src/rfantibody/rf2/network/predict.py",
+        "src/rfantibody/rf2/modules/model_runner.py",
+    ):
+        assert "dgl.graph(" not in _read(relative_path), (
+            f"{relative_path} constructs a bare dgl graph"
+        )
+
+    entry = _read("scripts/rf2_predict.py")
+    assert "get_accelerator_device(index=0, require_accelerator=True)" in entry, (
+        "scripts/rf2_predict.py does not select the accelerator through "
+        "rfantibody.device.get_accelerator_device"
+    )
+    for token in (
+        "if torch.cuda.is_available() else 'cpu'",
+        'if torch.cuda.is_available() else "cpu"',
+    ):
+        assert token not in entry, (
+            "scripts/rf2_predict.py still contains the CUDA-or-CPU device "
+            f"selection token {token!r}"
+        )

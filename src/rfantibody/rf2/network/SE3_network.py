@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from se3_transformer.model import SE3Transformer
 from se3_transformer.model.fiber import Fiber
+from se3_transformer.runtime.compat import without_autocast
 
 from rfantibody.rf2.network.util_module import init_lecun_normal_param
 
@@ -72,7 +73,7 @@ class SE3TransformerWrapper(nn.Module):
         if self.l1_out > 0:
             nn.init.zeros_(self.se3.graph_modules[-1].weights['1'])
 
-    @torch.cuda.amp.autocast(enabled=False)
+    @without_autocast()
     def forward(self, G, type_0_features, type_1_features=None, edge_features=None):
         if self.l1_in > 0:
             node_features = {'0': type_0_features, '1': type_1_features}
