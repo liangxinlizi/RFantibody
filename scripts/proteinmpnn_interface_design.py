@@ -8,6 +8,7 @@ import numpy as np
 import torch
 
 import rfantibody.proteinmpnn.util_protein_mpnn as mpnn_util
+from rfantibody.device import get_accelerator_device, npu_available
 from rfantibody.proteinmpnn.sample_features import SampleFeatures
 from rfantibody.proteinmpnn.struct_manager import StructManager
 
@@ -68,7 +69,9 @@ if args.deterministic:
     np.random.seed(42)
     torch.manual_seed(42)
     torch.cuda.manual_seed_all(42)
-    
+    if npu_available():
+        torch.npu.manual_seed_all(42)
+
     # Enable deterministic behavior
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -82,12 +85,8 @@ class ProteinMPNN_runner():
     def __init__(self, args, struct_manager):
         self.struct_manager = struct_manager
 
-        if torch.cuda.is_available():
-            print('Found GPU will run ProteinMPNN on GPU')
-            self.device = "cuda:0"
-        else:
-            print('No GPU found, running ProteinMPNN on CPU')
-            self.device = "cpu"
+        self.device = get_accelerator_device(index=0, require_accelerator=True)
+        print(f'ProteinMPNN accelerator device: {self.device}')
 
         self.mpnn_model = mpnn_util.init_seq_optimize_model(
             self.device,
