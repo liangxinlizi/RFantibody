@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from opt_einsum import contract as einsum
 
+from rfantibody.attention_backend import tied_attention_logits
 from rfantibody.rfdiffusion.util_module import init_lecun_normal
 
 
@@ -393,7 +394,7 @@ class BiasedAxialAttention(nn.Module):
         
         query = query * self.scaling
         key = key / math.sqrt(L) # normalize for tied attention
-        attn = einsum('bnihk,bnjhk->bijh', query, key) # tied attention
+        attn = tied_attention_logits(query, key) # tied attention, CUDA reduction order on npu
         attn = attn + bias # apply bias
         attn = F.softmax(attn, dim=-2) # (B, L, L, h)
         

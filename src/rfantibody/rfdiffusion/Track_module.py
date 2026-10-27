@@ -9,6 +9,7 @@ from se3_transformer.runtime.compat import without_autocast
 from rfantibody.rfdiffusion.Attention_module import *
 from rfantibody.rfdiffusion.SE3_network import SE3TransformerWrapper
 from rfantibody.rfdiffusion.util_module import *
+from rfantibody.rfdiffusion.cdist_compat import cdist
 
 # Components for three-track blocks
 # 1. MSA -> MSA update (biased attention. bias from pair & structure)
@@ -257,7 +258,7 @@ class Str2Str(nn.Module):
         pair = self.norm_edge1(self.embed_e1(pair))
         
         neighbor = get_seqsep(idx)
-        rbf_feat = rbf(torch.cdist(xyz[:,:,1], xyz[:,:,1]))
+        rbf_feat = rbf(cdist(xyz[:,:,1], xyz[:,:,1]))
         pair = torch.cat((pair, rbf_feat, neighbor), dim=-1)
         pair = self.norm_edge2(self.embed_e2(pair))
         
@@ -336,7 +337,7 @@ class IterBlock(nn.Module):
                                p_drop=p_drop)
 
     def forward(self, msa, pair, R_in, T_in, xyz, state, idx, motif_mask, use_checkpoint=False):
-        rbf_feat = rbf(torch.cdist(xyz[:,:,1,:], xyz[:,:,1,:]))
+        rbf_feat = rbf(cdist(xyz[:,:,1,:], xyz[:,:,1,:]))
         if use_checkpoint:
             msa = checkpoint.checkpoint(create_custom_forward(self.msa2msa), msa, pair, rbf_feat, state)
             pair = checkpoint.checkpoint(create_custom_forward(self.msa2pair), msa, pair)

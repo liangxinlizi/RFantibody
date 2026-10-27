@@ -8,6 +8,7 @@ import numpy as np
 import torch
 
 import rfantibody.proteinmpnn.util_protein_mpnn as mpnn_util
+import rfantibody.rng as antibody_rng
 from rfantibody.device import get_accelerator_device, npu_available
 from rfantibody.proteinmpnn.sample_features import SampleFeatures
 from rfantibody.proteinmpnn.struct_manager import StructManager
@@ -71,6 +72,7 @@ if args.deterministic:
     torch.cuda.manual_seed_all(42)
     if npu_available():
         torch.npu.manual_seed_all(42)
+        antibody_rng.manual_seed(42)
 
     # Enable deterministic behavior
     torch.backends.cudnn.deterministic = True

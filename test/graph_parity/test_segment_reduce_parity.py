@@ -63,7 +63,7 @@ PARITY_RTOL = 1e-4
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _EVIDENCE_PATH = Path(
-    os.environ.get("RF_EVIDENCE_DIR") or (_PROJECT_ROOT / "migration_reports")
+    os.environ.get("RF_EVIDENCE_DIR") or (_PROJECT_ROOT / "outputs" / "evidence")
 ) / "graph_parity"
 
 _ROUTE_CASE = "test.graph_parity.route_case:run_edge_reductions"

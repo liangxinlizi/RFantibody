@@ -19,10 +19,13 @@ def _installed_venv():
     Prefer the interpreter's own environment (``.venv`` on the NPU host,
     ``.venv-cuda`` on the documented CUDA path) and fall back to the project
     ``.venv``.  Returns ``None`` when neither is a real environment.
+
+    ``sys.prefix`` is used rather than ``Path(sys.executable).resolve()``: the
+    latter dereferences the ``<venv>/bin/python`` symlink to the base
+    interpreter, which can escape the environment after a fresh install.
     """
-    exe = Path(sys.executable).resolve()
     candidates = [
-        exe.parent.parent,              # <venv>/bin/python -> <venv>
+        Path(sys.prefix),               # the running interpreter's environment
         PROJECT_ROOT / ".venv",
     ]
     for venv in candidates:

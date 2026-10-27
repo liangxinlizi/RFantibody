@@ -11,6 +11,7 @@ from rfantibody.rfdiffusion.Attention_module import (
     FeedForwardLayer,
 )
 from rfantibody.rfdiffusion.Track_module import PairStr2Pair
+from rfantibody.rfdiffusion.cdist_compat import cdist
 from rfantibody.rfdiffusion.util_module import (
     create_custom_forward,
     init_lecun_normal,
@@ -346,7 +347,7 @@ class Templ_emb(nn.Module):
         templ = self.emb(templ) # Template templures (B, T, L, L, d_templ)
         # process each template features
         xyz_t = xyz_t.reshape(B*T, L, -1, 3)
-        rbf_feat = rbf(torch.cdist(xyz_t[:,:,1], xyz_t[:,:,1]))
+        rbf_feat = rbf(cdist(xyz_t[:,:,1], xyz_t[:,:,1]))
         templ = self.templ_stack(templ, rbf_feat, use_checkpoint=use_checkpoint) # (B, T, L,L, d_templ)
 
         # Prepare 1D template torsion angle features
@@ -412,7 +413,7 @@ class Recycling(nn.Module):
         a = torch.cross(b, c, dim=-1)
         Cb = -0.58273431*a + 0.56802827*b - 0.54067466*c + Ca    
         
-        dist = rbf(torch.cdist(Cb, Cb))
+        dist = rbf(cdist(Cb, Cb))
         dist = torch.cat((dist, left, right), dim=-1)
         dist = self.proj_dist(dist)
         pair = dist + self.norm_pair(pair)

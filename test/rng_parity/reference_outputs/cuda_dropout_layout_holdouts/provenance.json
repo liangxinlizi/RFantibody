@@ -1,0 +1,82 @@
+{
+  "scope": "independent H100 long/misaligned contiguous fused_dropout recordings; vector width inferred from observed pointer metadata plus the pinned primary source, never from profiler kernel labels; tests only",
+  "torch": "2.5.1+cu118",
+  "device": "NVIDIA H100 80GB HBM3",
+  "statement": "These five files are byte-identical copies of the host dropout-layout recording (reference/dropout-layout-study/holdouts). They are diagnostic test oracles used only by test/rng_parity/test_cuda_compat_dropout.py to replay the CUDA fused_dropout mask bits, the Philox offset pair and the vector width the pinned source selects; no product code imports them, and no expectation is ever derived from candidate output.",
+  "collector": "reference/dropout-layout-study/collect_dropout_layout_holdouts.py",
+  "collector_note": "The collector allocated a contiguous CUDA tensor per case, read the data pointer, derived the vector width from the pinned can_vectorize_up_to/get_vector_size rule, called torch.nn.functional.dropout(x, p=0.1, training=True) once, and recorded the keep mask plus the CUDA generator state before and after the call.",
+  "manifest_sha256": "c888a92c64ae638dfcfcc8443e7af6116fcf7ab279c846637f822a686013389a",
+  "source_files": [
+    {
+      "path": "aten/src/ATen/native/cuda/Dropout.cu",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/v2.5.1/aten/src/ATen/native/cuda/Dropout.cu",
+      "sha256": "dd8802fd7214dbc8880c446198b385915dc34932ea0f04f419911377c9ad926e",
+      "clause": "UNROLL = 4; dropout_vector_size via get_vector_size; fused_dropout_kernel_vec consumes one curand_uniform4 per VEC elements with gridxvec_loop_state starting at 0 (so VEC == 2 always takes the fresh (x, y) branch); counter_offset = ((nelem - 1) / (block_size * grid.x * UNROLL) + 1) * UNROLL"
+    },
+    {
+      "path": "aten/src/ATen/native/cuda/MemoryAccess.cuh",
+      "url": "https://raw.githubusercontent.com/pytorch/pytorch/v2.5.1/aten/src/ATen/native/cuda/MemoryAccess.cuh",
+      "sha256": "73877e2ca8f81668397d23730fc0e2846abcca955920b1508f9014087cec2372",
+      "clause": "can_vectorize_up_to<T>(ptr) returns 4 when ptr is aligned to alignof(aligned_vector<T, 4>) == 4 * sizeof(T), 2 when aligned to 2 * sizeof(T), else 1; there is no 16-byte cap"
+    }
+  ],
+  "stream": {
+    "seed": 17,
+    "p_drop": 0.1,
+    "p_keep": 0.9,
+    "offset_before": 0,
+    "offset_after": 4
+  },
+  "cases": [
+    {
+      "file": "0.npz",
+      "dtype": "torch.float32",
+      "numel": 600002,
+      "ptr_mod_32": 0,
+      "vec": 2,
+      "offset_before": 0,
+      "offset_after": 4,
+      "npz_sha256": "c1330d472038e1b7a51e64fd5c6ebea16fa329b1cedc9dc08ef676ae59556f52",
+      "mask_sha256": "b93ca4bb88f1b798b7fb68b3927a6f7c0c887bbe01037f7b9485ce8037b83095",
+      "vec_clause": "can_vectorize_up_to: 16 B alignment admits vec 4, but numel % 4 == 2 halves the width to vec 2"
+    },
+    {
+      "file": "1.npz",
+      "dtype": "torch.float64",
+      "numel": 600000,
+      "ptr_mod_32": 0,
+      "vec": 4,
+      "offset_before": 0,
+      "offset_after": 4,
+      "npz_sha256": "a732c3eff1cab3c69e9d6df8e709fb326b7232732f6e41da27d7d272570e49d1",
+      "mask_sha256": "d9f7bc8f923e926c26d64e91af7dbb15243d97af6f41e7a4a087d41608a06dc4",
+      "vec_clause": "can_vectorize_up_to: 32 B alignment admits vec 4 for float64 (4 * sizeof(float64) == 32 B) and numel % 4 == 0; UNROLL == 4 is the only cap"
+    },
+    {
+      "file": "2.npz",
+      "dtype": "torch.float64",
+      "numel": 600002,
+      "ptr_mod_32": 0,
+      "vec": 2,
+      "offset_before": 0,
+      "offset_after": 4,
+      "npz_sha256": "c1330d472038e1b7a51e64fd5c6ebea16fa329b1cedc9dc08ef676ae59556f52",
+      "mask_sha256": "b93ca4bb88f1b798b7fb68b3927a6f7c0c887bbe01037f7b9485ce8037b83095",
+      "vec_clause": "can_vectorize_up_to: 32 B alignment admits vec 4 for float64, but numel % 4 == 2 halves the width to vec 2"
+    },
+    {
+      "file": "3.npz",
+      "dtype": "torch.float32",
+      "numel": 600000,
+      "ptr_mod_32": 8,
+      "vec": 2,
+      "offset_before": 0,
+      "offset_after": 4,
+      "npz_sha256": "8a76618be65c2b88e09cdd16865363aef6d63267f0f149135296e8555afe63b3",
+      "mask_sha256": "39e759c32ff11e7309c0f7d247681610d0a295e007cd1569254c838c0855f786",
+      "vec_clause": "can_vectorize_up_to: 8 B is not 16 B, so vec 4 is unavailable; 8 B alignment selects vec 2 (numel % 2 == 0)"
+    }
+  ],
+  "npz_contents": "keep (uint8 0/1 mask, C order, element count above), before and after (the 16-byte CUDA generator state: 8-byte seed then 8-byte Philox offset)",
+  "note": "Byte-identical copies of the host recordings: the npz payloads and manifest.json keep their original bytes and SHA-256 values. This provenance file adds only relative paths and the source clauses above; it contains no absolute or private path."
+}

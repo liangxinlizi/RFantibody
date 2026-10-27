@@ -1,0 +1,681 @@
+{
+  "device": "NVIDIA H100 80GB HBM3",
+  "torch": "2.3.1+cu118",
+  "sm_count": 132,
+  "max_threads_per_sm": 2048,
+  "block_size": 256,
+  "rows": [
+    {
+      "seed": 0,
+      "numel": 3,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "000.npz",
+      "sha256": "827837380572ae8a5e40641c34a3e560b409dd756cca968b40df797eefab05fd"
+    },
+    {
+      "seed": 0,
+      "numel": 3,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "001.npz",
+      "sha256": "e864d8615a400a237de0bb5faeb52d82529f579f393811ff2738b47bc491b27c"
+    },
+    {
+      "seed": 0,
+      "numel": 3,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "002.npz",
+      "sha256": "9fc59637254f750dab77ecaaea8fd12e80690f871fc43992a3a676b86898f06e"
+    },
+    {
+      "seed": 0,
+      "numel": 21,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "003.npz",
+      "sha256": "a63160ec9ecd3d95aab3fbfe30e529c0a2eca943be6cabf7eef203f7138610c6"
+    },
+    {
+      "seed": 0,
+      "numel": 21,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "004.npz",
+      "sha256": "0bb8a3798b2a3627464280fef8fc01d663a905e6e25df8d0533a640ce002a483"
+    },
+    {
+      "seed": 0,
+      "numel": 21,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "005.npz",
+      "sha256": "c3eaa9576e16a63783698dd643743a17b3cac7f6eafc4fcb4f5e7791a1b3fcd3"
+    },
+    {
+      "seed": 0,
+      "numel": 478,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "006.npz",
+      "sha256": "bc0ea532f04135d23d0b7b3133a7978b4c4ff50506a2638269531c627f7b0cde"
+    },
+    {
+      "seed": 0,
+      "numel": 478,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "007.npz",
+      "sha256": "53da4e59f7611b179d2d2b06983b2871b328def70c7b610703a45e11b0fd5b54"
+    },
+    {
+      "seed": 0,
+      "numel": 478,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "008.npz",
+      "sha256": "877f057655e0435f194712cb7b3564323c571cee99b924dcc6f8243b8b1af271"
+    },
+    {
+      "seed": 0,
+      "numel": 956,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "009.npz",
+      "sha256": "4d8c5562e571973467a4b5fe61c4d4e9e251ed200a488fd680cec580381a9a99"
+    },
+    {
+      "seed": 0,
+      "numel": 956,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "010.npz",
+      "sha256": "c655de78fb20f90013cf0f901a789d52078181c258476f54a21db92a9acdf067"
+    },
+    {
+      "seed": 0,
+      "numel": 956,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "011.npz",
+      "sha256": "2a86a85aec243de1315947f8694459559df0f9ecfa32fc68f6c07a99788af244"
+    },
+    {
+      "seed": 0,
+      "numel": 1025,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "012.npz",
+      "sha256": "36ef36673844029b2d9a0d8dc6309e3a2d8da7b870ed86c5492aaac64306fabb"
+    },
+    {
+      "seed": 0,
+      "numel": 1025,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "013.npz",
+      "sha256": "49ae2f2ae94cf362bb595b5959b2df5484a4f53818f3a59f53d14b54137b7d86"
+    },
+    {
+      "seed": 0,
+      "numel": 1025,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "014.npz",
+      "sha256": "e79ddd6232975cf37b242a2441e56a0717138c2e262bc560013c0e9deb5e8787"
+    },
+    {
+      "seed": 0,
+      "numel": 4097,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "015.npz",
+      "sha256": "eb9748f8c25b495ebc452d110d4a169f38453b17f07b5f8f876fb392213e7140"
+    },
+    {
+      "seed": 0,
+      "numel": 4097,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "016.npz",
+      "sha256": "1d2256e2a7dec5487f40656d9534e58e38792890d55f5774a731f66b401a8155"
+    },
+    {
+      "seed": 0,
+      "numel": 4097,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "017.npz",
+      "sha256": "091f03269e08bfd22acc9a4923b1869d0b61b11319f16c9e7339f3780efbb6a0"
+    },
+    {
+      "seed": 0,
+      "numel": 300000,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "018.npz",
+      "sha256": "eacef200a01364f5a6dc6d54d53f0d72ab8b238f8d5bd740a2b6218087e31b29"
+    },
+    {
+      "seed": 0,
+      "numel": 300000,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "019.npz",
+      "sha256": "888ffdc8e78bb28c8b378c3bc6325fe5073cc7905721ab5834b962a990f9a27b"
+    },
+    {
+      "seed": 0,
+      "numel": 300000,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "020.npz",
+      "sha256": "608b20da1bbfc42c14209aa0650eca24714fa3933ea29a4270d39866a792d5da"
+    },
+    {
+      "seed": 17,
+      "numel": 3,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "021.npz",
+      "sha256": "cfb1be88495299b8d7f2d77a95cabcf2661238012d09c2b460953935be6ce74b"
+    },
+    {
+      "seed": 17,
+      "numel": 3,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "022.npz",
+      "sha256": "b2da00408b6da3788bcf7ce057337279abb18cf9db02ce9f09534ee428c6dcbc"
+    },
+    {
+      "seed": 17,
+      "numel": 3,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "023.npz",
+      "sha256": "8df04514f333e6215ffd7dc6269ec9b1b73c27fbf55efd8e11ebc528aa30e6aa"
+    },
+    {
+      "seed": 17,
+      "numel": 21,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "024.npz",
+      "sha256": "08d614b900a57e471c2fa770760f29781f927f20ef3a61b0b8cd9cb6cea0c30f"
+    },
+    {
+      "seed": 17,
+      "numel": 21,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "025.npz",
+      "sha256": "56fd9c54a4493631d1f1d0778c3a81840d6a7cf414353ce41c393643212d61c5"
+    },
+    {
+      "seed": 17,
+      "numel": 21,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "026.npz",
+      "sha256": "86831f3561c75a944ddb6ec10937ed088d184b5f3af441a33adf0b9fa3961a00"
+    },
+    {
+      "seed": 17,
+      "numel": 478,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "027.npz",
+      "sha256": "e2260494920bad944d516fd7a5657c5b7bd0fe8e4af9d04e3e012a63fca95b93"
+    },
+    {
+      "seed": 17,
+      "numel": 478,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "028.npz",
+      "sha256": "fd639c0a5c375b786b0e03dba261245f91951dfedd095823e64a6dd2e02f3e51"
+    },
+    {
+      "seed": 17,
+      "numel": 478,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "029.npz",
+      "sha256": "f4c119d36e0c440881c939001c4c090f7967a7503ba7411926f0f99ff381bc3f"
+    },
+    {
+      "seed": 17,
+      "numel": 956,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "030.npz",
+      "sha256": "b3420624d090fd775f43f22a726089a8abdb5507bd3afb2796c404463278ae42"
+    },
+    {
+      "seed": 17,
+      "numel": 956,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "031.npz",
+      "sha256": "28ba61f6d4c5ae285ca45899dcc01ed67c10c1185be091b6779f6adc1ad4d627"
+    },
+    {
+      "seed": 17,
+      "numel": 956,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "032.npz",
+      "sha256": "f7cf6d695f7526e871f6981b33a729e3d43fbbbfec850feb89b2ce034257b288"
+    },
+    {
+      "seed": 17,
+      "numel": 1025,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "033.npz",
+      "sha256": "46f5091af4d6f41954dfbc40e77f48f1f266e42cd84cbbacb0a9acdb70a74cfa"
+    },
+    {
+      "seed": 17,
+      "numel": 1025,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "034.npz",
+      "sha256": "51300cb4e6fc46f7fcc80adf899b824b113ea9d28c4352a032c9b6cdd11a844a"
+    },
+    {
+      "seed": 17,
+      "numel": 1025,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "035.npz",
+      "sha256": "80ad6b1c411d4ddd12031b200427846d8560ad27c6763e82fbb2dfd1c6f7b20d"
+    },
+    {
+      "seed": 17,
+      "numel": 4097,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "036.npz",
+      "sha256": "afe3a389a211f8d6473b6e9086ab1d715bb864748e13b245ef5c3cbf3b24a552"
+    },
+    {
+      "seed": 17,
+      "numel": 4097,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "037.npz",
+      "sha256": "14b75a502a70a12bdfffaf69aa488a27f01d85faf40ba052c20d0d6d1704c741"
+    },
+    {
+      "seed": 17,
+      "numel": 4097,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "038.npz",
+      "sha256": "29a327acf5a8815b93b01e1340449c07a65d0e55d70de8cff119740d46da7ef6"
+    },
+    {
+      "seed": 17,
+      "numel": 300000,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "039.npz",
+      "sha256": "2a5ca7e221d8c04b4efc612b4c0e021b21f1aa0175415f19a8bd706cf620e42e"
+    },
+    {
+      "seed": 17,
+      "numel": 300000,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "040.npz",
+      "sha256": "fdbaa4c82d17f87ca74a6381e97a873db85b333cd488c286e167658797fb618f"
+    },
+    {
+      "seed": 17,
+      "numel": 300000,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "041.npz",
+      "sha256": "3faaa7bcbc844979b77a49c3c07f802b134734d4a9f06f0bcf3791c076842af7"
+    },
+    {
+      "seed": 987654321,
+      "numel": 3,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "042.npz",
+      "sha256": "64ad5c544b760c4e15cc730d1e16df8c447c9c7a0c9f6b8cd2d12107d20593fc"
+    },
+    {
+      "seed": 987654321,
+      "numel": 3,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "043.npz",
+      "sha256": "cf710db4b2b6195fd4f7f49800f0d447764ca3a62984727a8683d1c9f4e3cc85"
+    },
+    {
+      "seed": 987654321,
+      "numel": 3,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "044.npz",
+      "sha256": "8633be922d925cd7a8b61c184168d6e4576a1e378e5580633924f872ebb0a16b"
+    },
+    {
+      "seed": 987654321,
+      "numel": 21,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "045.npz",
+      "sha256": "863b7b5f13f9070ffe92ded37c8901527f5c0c63855e788669a0475fe03dbe79"
+    },
+    {
+      "seed": 987654321,
+      "numel": 21,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "046.npz",
+      "sha256": "b05b9616cbd5e28ea044bffa1143d5b48265116c80645ba603f60a9254de2424"
+    },
+    {
+      "seed": 987654321,
+      "numel": 21,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "047.npz",
+      "sha256": "f731902d1d779b3c42fa4906a05fadb5d192b75d346439fdf40603bd49dc0249"
+    },
+    {
+      "seed": 987654321,
+      "numel": 478,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "048.npz",
+      "sha256": "98a50965bf0b872cebc20ddc3d0e96d1cd07e7af7cb1e7671eb10f53e6636d18"
+    },
+    {
+      "seed": 987654321,
+      "numel": 478,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "049.npz",
+      "sha256": "da10b401fd1dc0c0f56994e9a377387a209e42eebbe0cb47dcd32b6dca3ef13a"
+    },
+    {
+      "seed": 987654321,
+      "numel": 478,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "050.npz",
+      "sha256": "78591db08799320c250234e3e84243a4f2a26692c525d4a3dede16be84db2496"
+    },
+    {
+      "seed": 987654321,
+      "numel": 956,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "051.npz",
+      "sha256": "82913f9fae22d2c1d5698667e74e73d975f357d57e58385938588de1460b6ef6"
+    },
+    {
+      "seed": 987654321,
+      "numel": 956,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "052.npz",
+      "sha256": "fb77af685b5cf208ed886e171ea55803175e438be2ace2cb4641aa7d780364a7"
+    },
+    {
+      "seed": 987654321,
+      "numel": 956,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "053.npz",
+      "sha256": "36ce4d5d3c372fb45da199a9f30c7d295d50bad5b31e031a40a8db09046bce04"
+    },
+    {
+      "seed": 987654321,
+      "numel": 1025,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "054.npz",
+      "sha256": "4452794fc9bc31b00929997543dd77889f0132f1a8864daf1c7697093fd7e2c3"
+    },
+    {
+      "seed": 987654321,
+      "numel": 1025,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "055.npz",
+      "sha256": "026ea25a72c83db15280059a0ee8d3e48576a087e0be38e6d7b9a6f759deff15"
+    },
+    {
+      "seed": 987654321,
+      "numel": 1025,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "056.npz",
+      "sha256": "e8d5ad62a70f5daab68be4b6e6156721af9c64f3639afc8cf85e315c1e59a293"
+    },
+    {
+      "seed": 987654321,
+      "numel": 4097,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "057.npz",
+      "sha256": "f918bd65e31b2368e64307ecb1514fa64e78216e6cc3f4cab0d0c80ecec81563"
+    },
+    {
+      "seed": 987654321,
+      "numel": 4097,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "058.npz",
+      "sha256": "e118a8f445513054612e9860fb4f9131de220f20120239d80a960681e18141a2"
+    },
+    {
+      "seed": 987654321,
+      "numel": 4097,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "059.npz",
+      "sha256": "426d6d95ac7e7da5e53565a4295197de5184a302027458d007d10203e2f7adf7"
+    },
+    {
+      "seed": 987654321,
+      "numel": 300000,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "060.npz",
+      "sha256": "2edc5d1cc0a50028e30cebb3ca7506154c05d9af430994f6b8340b9489e9aab2"
+    },
+    {
+      "seed": 987654321,
+      "numel": 300000,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "061.npz",
+      "sha256": "1d8b81dc39dc98e5edcf59d0032fd9545b1c7888df0a2704723afeb8d06f97a5"
+    },
+    {
+      "seed": 987654321,
+      "numel": 300000,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "062.npz",
+      "sha256": "0e275731238c929a582e7b4aef48c8e695fd2bfb1f86460086725eb1e49e2fc9"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 3,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "063.npz",
+      "sha256": "834753e63a3ada359e2424673dfbc1a608365b542bd3e94e96274afe1de08037"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 3,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "064.npz",
+      "sha256": "d46533d5389fadca5f78bb5a25bc1bf7c910fa3fad614d2d85ce1f7621166e0f"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 3,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "065.npz",
+      "sha256": "ef6a022f56416942869220b979cba1ec8fa46fbfeec33ced62ad699ec2ec8ed9"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 21,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "066.npz",
+      "sha256": "2471aef0bddb8a55264323b7f74335c48e1924d101e185c20ecacae69487c393"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 21,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "067.npz",
+      "sha256": "9a1e43d534b45778b75b9285ba3f3207814f3569679b941256243dac8a12b28f"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 21,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "068.npz",
+      "sha256": "ba9c57adaf2c8a72fa633cb7d54dbf13d70dcaf312989cfe93e8832d7a8e3718"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 478,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "069.npz",
+      "sha256": "861bc9b6c81063c2504887aa8985b5a265817ecaa984b11a6c7d574fd62adde4"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 478,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "070.npz",
+      "sha256": "7515d6039a1cb98c6a928a61fe02f261ed51def21e9982ea71f8c56efb5e419d"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 478,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "071.npz",
+      "sha256": "8c45bdfa1aaa3ae9924cb61a15893dd17e57f5494e46298974a8f38fffd3c308"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 956,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "072.npz",
+      "sha256": "7a8bc83d0bdac20b73f19b5fa50e134041504d119363f8b52a26ce22252e355f"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 956,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "073.npz",
+      "sha256": "49780002f38fc2e396d3f3b3ba3557a1bf75300be592d190be9c3f0e75ba9d02"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 956,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "074.npz",
+      "sha256": "b9a81787b421335d49f83a74318c158515014a3fd95c5dbee4c3d05122b25ac9"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 1025,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "075.npz",
+      "sha256": "dfa3c40a0aa60602fd785b2763509f0b9aa83c3b611e3d4381641755532b445c"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 1025,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "076.npz",
+      "sha256": "41eb24b8a7d2074271f40ce3bbd3fe71770395205a2df396395d3d2b7771b9eb"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 1025,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "077.npz",
+      "sha256": "1399a3211eda841fe5dca6fba4fa5c538b4f2cbe2ab979043c99134a20863c29"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 4097,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "078.npz",
+      "sha256": "660915f0de2eb271c3d1381f8d9603095beb81a260e5ed247d2c1d9dc06417b0"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 4097,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "079.npz",
+      "sha256": "a0ebb2ecf3949c929f22d08c33a1cb9c7349a75d950bc5e504d0e4eb2cea8b30"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 4097,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "080.npz",
+      "sha256": "71dea29d226063d8ca17abee5a52948fb5e8752440c928a452a1bd8da13eddad"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 300000,
+      "kind": "normal",
+      "dtype": "torch.float32",
+      "file": "081.npz",
+      "sha256": "69a038dc8899385459e22c4f0faaf9f18b0b8bf5fe779180e693c810669a3cce"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 300000,
+      "kind": "exponential",
+      "dtype": "torch.float32",
+      "file": "082.npz",
+      "sha256": "6df30df5a5807b64b18bf3f51d80f01e94cb7cddf906377d442ef6bb9eae9ce2"
+    },
+    {
+      "seed": 9223372036854775809,
+      "numel": 300000,
+      "kind": "exponential",
+      "dtype": "torch.float64",
+      "file": "083.npz",
+      "sha256": "7716195289032fd2e3928ddea766f4f4d343ab5ead494357357b51cb5116b31d"
+    }
+  ]
+}

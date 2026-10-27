@@ -1,0 +1,57 @@
+{
+  "assets": "cuda_rf2_dropout_plan",
+  "purpose": "Read-only metadata projection of the 902 CUDA F.dropout (fused_dropout) events of the original deterministic RF2 run. It checks the CUDA-compatible dropout counter model on the real product stream: same shapes, same order, same Philox offsets. No mask array, no npz payload and no neural output is copied. Diagnostic oracle only: product code never imports it and it is never used as model input.",
+  "source": {
+    "path": "reference/dropout-study/stream-plan.json",
+    "sha256": "a7193294acef30e98dacd5d7556a2e9b5aec06ce269368e121478b85335d8e8f",
+    "scope": "independent random-mask metadata, neural outputs never supplied",
+    "original_output_preserved": true,
+    "native_observer_valid": true,
+    "note": "The listed recording path is relative to the migration example root and is read-only host content; it is not part of the migrated tree."
+  },
+  "generation_environment": {
+    "device": "NVIDIA H100 80GB HBM3",
+    "torch": "2.3.1+cu118",
+    "stream_profile": {
+      "sm_count": 132,
+      "max_threads_per_sm": 2048,
+      "block_size": 256
+    },
+    "source_commit": "3e5a5bb1cb98befde9fc049ae3ff58cabb491f67",
+    "script": "test/rf2/scripts/ab_prediction.sh (unchanged original RF2 case, fixed inputs, seed 42)",
+    "pinned_torch_sources": [
+      {
+        "file": "aten/src/ATen/native/cuda/Dropout.cu",
+        "sha256": "ff6b4434bcc02aa95d453e23a7e1f6ffeed42fdfa8249c0ed56ed092ee97bfef"
+      },
+      {
+        "file": "aten/src/ATen/native/cuda/Dropout.cpp",
+        "sha256": "ee594dad68fb0dfd0c6f1f916be6119b0422e73a9d4246bb57ad88dec69a0205"
+      }
+    ]
+  },
+  "copied_files": [
+    {
+      "file": "rf2-dropout-plan.json",
+      "sha256": "e3c01008702e6145ce69528aea702c08537e0ae245e3469d80e38832c3a5bc1a",
+      "description": "projection of the 902 functional_dropout events (shape, stride, dtype, p, offset_before, offset_after, location, inplace, contiguous, pointer alignment, observer validity flags, device), the CUDA-vs-CPU stream split and the seed-0 / offset-0 origin",
+      "projection_time_utc": "2026-10-22T20:11:29Z",
+      "projection_validation": "every recorded offset pair was re-derived from (numel, launch profile) while projecting; any mismatch aborted the projection"
+    }
+  ],
+  "contract_recorded_by_the_asset": {
+    "events": 902,
+    "drop_probability": 0.1,
+    "dtype": "torch.float32",
+    "first_offset_pair": [0, 112],
+    "final_offset": 101024,
+    "gap_free": true,
+    "shape_counts": {
+      "1x478x478x128": 22,
+      "1x1x478x8x1": 440,
+      "1x478x478x256": 440
+    },
+    "cpu_stream_note": "the 2288 cpu torch.bernoulli events belong to the custom CPU dropout head that this work does not touch; they are summarised, not replayed"
+  },
+  "usage_restriction": "Expected offsets only. The test replays the recorded (shape, dtype, p) sequence through the candidate counter model and compares the offset pairs; it never derives an expectation from the candidate and nothing in src/ reads these files."
+}

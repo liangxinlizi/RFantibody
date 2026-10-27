@@ -6,12 +6,12 @@
 // `aclrtlaunch_graph_probe` / `aclrtlaunch_edge_dot_v` /
 // `aclrtlaunch_edge_topology` / `aclrtlaunch_copy_e_sum` /
 // `aclrtlaunch_copy_e_mean` / `aclrtlaunch_edge_softmax_dst` /
-// `aclrtlaunch_avg_pooling` / `aclrtlaunch_max_pooling` entry points.  This
-// file only validates tensor contracts, computes the core split, fetches the
-// current NPU stream and calls those entry points; it contains no device
-// computation and no Torch-primitive emulation of a graph operator (no
-// `at::gather`, `query[dst]`, `scatter`, `index_add`, `sum`, `max` or `exp` on
-// the operator path).
+// `aclrtlaunch_avg_pooling` / `aclrtlaunch_max_pooling` /
+// `aclrtlaunch_tied_attention_logits` entry points.  This file only validates
+// tensor contracts, computes the core split, fetches the current NPU stream and
+// calls those entry points; it contains no device computation and no
+// Torch-primitive emulation of a graph operator (no `at::gather`, `query[dst]`,
+// `scatter`, `index_add`, `sum`, `max` or `exp` on the operator path).
 //
 // Every operator is registered for dispatch key `PrivateUse1`, so a CPU/CUDA
 // tensor cannot silently take this route and an NPU tensor cannot silently fall
@@ -35,6 +35,10 @@ constexpr int64_t kElementAlign = 8;
 // Element count per UB tile for the route-control kernel.  Kept small enough for
 // two double-buffered float32 queues.
 constexpr int64_t kProbeTileElements = 2048;
+// Output rows accumulated at once by one work unit of the tied-attention
+// contraction.  Mirrors `kITile` of `op_kernel/tied_attention_logits.cpp`, which
+// the host needs in order to count the work units and size the launch.
+constexpr int64_t kTiedAttentionITile = 4;
 
 // Number of AIV cores usable on the tensor's device.  A failed capability query
 // falls back to a *core count* of one; it is never a device fallback.
@@ -500,6 +504,87 @@ at::Tensor max_pooling(const at::Tensor& feat, const at::Tensor& seglen,
     return global_pool(true, feat, seglen, num_segments, stream);
 }
 
+// Native CUDA-order contraction of the tied attention of the RFdiffusion reverse
+// path:
+//
+//   out[b, h, i, j] = SUM_{k = 0..K-1} SUM_{n = 0..N-1}
+//                         fma_f32(query[b, n, h, k, i], key[b, n, h, k, j], acc)
+//
+// with `k` outer and `n` inner (ascending) and every step one correctly rounded
+// float32 FMA.  `queryT` is contiguous float32 `[B, N, H, K, I]` and `keyT`
+// contiguous float32 `[B, N, H, K, J]` (the Python adapter only permutes and
+// copies the two operands into this layout, i.e. pure data movement); the result
+// is `[B, H, I, J]`.  The host validates the contract, counts the work units,
+// allocates the output and issues exactly one `tied_attention_logits` kernel.
+// There is no Torch arithmetic, no CPU computation and no fallback on this path:
+// the contraction runs only inside the native kernel.
+at::Tensor tied_attention_logits(const at::Tensor& query_t,
+                                 const at::Tensor& key_t, int64_t stream) {
+    check_npu_float32(query_t, "tied_attention_logits: query");
+    check_npu_float32(key_t, "tied_attention_logits: key");
+    TORCH_CHECK(query_t.dim() == 5,
+                "tied_attention_logits: query must be 5-D [B, N, H, K, I], got ",
+                query_t.dim());
+    TORCH_CHECK(key_t.dim() == 5,
+                "tied_attention_logits: key must be 5-D [B, N, H, K, J], got ",
+                key_t.dim());
+    TORCH_CHECK(query_t.is_contiguous(),
+                "tied_attention_logits: query must be contiguous");
+    TORCH_CHECK(key_t.is_contiguous(),
+                "tied_attention_logits: key must be contiguous");
+    TORCH_CHECK(query_t.device() == key_t.device(),
+                "tied_attention_logits: query and key must live on the same "
+                "device, got ", query_t.device(), " and ", key_t.device());
+
+    const int64_t batch = query_t.size(0);
+    const int64_t num_n = query_t.size(1);
+    const int64_t num_h = query_t.size(2);
+    const int64_t num_k = query_t.size(3);
+    const int64_t dim_i = query_t.size(4);
+    const int64_t dim_j = key_t.size(4);
+    TORCH_CHECK(key_t.size(0) == batch && key_t.size(1) == num_n &&
+                    key_t.size(2) == num_h && key_t.size(3) == num_k,
+                "tied_attention_logits: query and key must agree on "
+                "B/N/H/K, got [", batch, ", ", num_n, ", ", num_h, ", ",
+                num_k, "] and [", key_t.size(0), ", ", key_t.size(1), ", ",
+                key_t.size(2), ", ", key_t.size(3), "]");
+
+    at::Tensor output = at::empty({batch, num_h, dim_i, dim_j},
+                                  query_t.options());
+    if (batch == 0 || num_n == 0 || num_h == 0 || num_k == 0 || dim_i == 0 ||
+        dim_j == 0) {
+        return output;
+    }
+
+    const int64_t iTiles = (dim_i + kTiedAttentionITile - 1) /
+                           kTiedAttentionITile;
+    const int64_t totalUnits = batch * num_h * iTiles;
+    int64_t blockDim = vector_core_count(query_t.device().index());
+    if (blockDim > totalUnits) {
+        blockDim = totalUnits;
+    }
+    if (blockDim < 1) {
+        blockDim = 1;
+    }
+
+    aclrtStream aclStream =
+        reinterpret_cast<aclrtStream>(static_cast<intptr_t>(stream));
+    const uint32_t ret = aclrtlaunch_tied_attention_logits(
+        static_cast<uint32_t>(blockDim), aclStream,
+        const_cast<void*>(query_t.const_data_ptr()),
+        const_cast<void*>(key_t.const_data_ptr()), output.data_ptr(), batch,
+        num_n, dim_i, dim_j, num_h, num_k, blockDim);
+    TORCH_CHECK(ret == 0,
+                "tied_attention_logits: AscendC kernel launch failed, ret=",
+                ret);
+
+    const aclError syncRet = aclrtSynchronizeStream(aclStream);
+    TORCH_CHECK(syncRet == ACL_SUCCESS,
+                "tied_attention_logits: stream synchronize failed, ret=",
+                syncRet);
+    return output;
+}
+
 }  // namespace ascend_graph_ops
 
 TORCH_LIBRARY_FRAGMENT(ascend_graph, m) {
@@ -524,6 +609,8 @@ TORCH_LIBRARY_FRAGMENT(ascend_graph, m) {
     m.def(
         "max_pooling(Tensor feat, Tensor seglen, int num_segments, "
         "int stream) -> Tensor");
+    m.def("tied_attention_logits(Tensor query, Tensor key, int stream) -> "
+          "Tensor");
 }
 
 TORCH_LIBRARY_IMPL(ascend_graph, PrivateUse1, m) {
@@ -535,6 +622,8 @@ TORCH_LIBRARY_IMPL(ascend_graph, PrivateUse1, m) {
     m.impl("edge_softmax_dst", TORCH_FN(ascend_graph_ops::edge_softmax_dst));
     m.impl("avg_pooling", TORCH_FN(ascend_graph_ops::avg_pooling));
     m.impl("max_pooling", TORCH_FN(ascend_graph_ops::max_pooling));
+    m.impl("tied_attention_logits",
+           TORCH_FN(ascend_graph_ops::tied_attention_logits));
 }
 
 // CPython requires a module export function for `import _ascend_graph`.  Loading

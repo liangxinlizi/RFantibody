@@ -6,7 +6,7 @@ The compiled extension ``_ascend_graph`` is produced by
 PyTorch dispatcher as namespace ``ascend_graph`` with ``PrivateUse1`` (NPU)
 implementations.
 
-Public surface of this iteration:
+Public surface of the native graph operators:
 
 * :func:`graph_probe` -- route control ``y = x + 1`` executed by the native
   ``graph_probe`` AscendC kernel on the input's NPU.
@@ -27,6 +27,14 @@ Public surface of this iteration:
   ``dgl.readout_nodes(op='mean'|'max')``) over an int64 segment table: the
   segment scan, the accumulation/selection and the DGL-exact mean denominator
   all run in the ``avg_pooling`` / ``max_pooling`` AscendC kernels.
+* :func:`tied_attention_logits` -- native CUDA-order FP32 contraction for the
+  tied attention of the RFdiffusion reverse path.  It implements the upstream
+  ``opt_einsum.contract('bnihk,bnjhk->bijh')`` with ``k`` as the outer and ``n``
+  as the inner reduction variable and every accumulation step a correctly
+  rounded float32 FMA, executed by the ``tied_attention_logits`` AscendC kernel
+  (compensated product, two TwoSums, vectorized round-to-odd).  It is a numeric
+  backend for an upstream ``opt_einsum`` expression rather than a DGL-API
+  operator, so the contracted DGL operator surface is unaffected by it.
 * :class:`AscendGraph` -- the DGL-shaped graph object of the NPU product path.
   It stores the ``[E]`` source/destination id arrays on the NPU, builds the
   native edge topology eagerly at construction, and exposes ``edges()``,
@@ -399,6 +407,7 @@ def max_pooling(feat: "torch.Tensor", seglen: "torch.Tensor") -> "torch.Tensor":
 
 # Imported last: ``AscendGraph`` uses the adapters defined above, and keeping the
 # import at the end avoids a circular import through this package.
+from .attention import tied_attention_logits  # noqa: E402
 from .graph import AscendGraph  # noqa: E402
 
 __all__ = [
@@ -414,4 +423,5 @@ __all__ = [
     "in_degrees",
     "is_available",
     "max_pooling",
+    "tied_attention_logits",
 ]

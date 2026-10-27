@@ -1,0 +1,84 @@
+{
+  "scope": "independent actual CUDA contiguous long/misaligned dropout; vector size inferred from observed pointer metadata plus pinned source, not profiler kernel labels; tests only",
+  "torch": "2.5.1+cu118",
+  "device": "NVIDIA H100 80GB HBM3",
+  "source": "https://raw.githubusercontent.com/pytorch/pytorch/v2.5.1/aten/src/ATen/native/cuda/MemoryAccess.cuh",
+  "cases": [
+    {
+      "file": "0.npz",
+      "dtype": "torch.float32",
+      "numel": 600002,
+      "storage_offset_elements": 0,
+      "input_strides": [
+        1
+      ],
+      "ptr_mod_16": 0,
+      "ptr_mod_32": 0,
+      "seed": 17,
+      "p_drop": 0.1,
+      "p_keep": 0.9,
+      "expected_vec_from_primary_source": 2,
+      "sha256": "c1330d472038e1b7a51e64fd5c6ebea16fa329b1cedc9dc08ef676ae59556f52",
+      "mask_sha256": "b93ca4bb88f1b798b7fb68b3927a6f7c0c887bbe01037f7b9485ce8037b83095",
+      "offset_before": 0,
+      "offset_after": 4
+    },
+    {
+      "file": "1.npz",
+      "dtype": "torch.float64",
+      "numel": 600000,
+      "storage_offset_elements": 0,
+      "input_strides": [
+        1
+      ],
+      "ptr_mod_16": 0,
+      "ptr_mod_32": 0,
+      "seed": 17,
+      "p_drop": 0.1,
+      "p_keep": 0.9,
+      "expected_vec_from_primary_source": 4,
+      "sha256": "a732c3eff1cab3c69e9d6df8e709fb326b7232732f6e41da27d7d272570e49d1",
+      "mask_sha256": "d9f7bc8f923e926c26d64e91af7dbb15243d97af6f41e7a4a087d41608a06dc4",
+      "offset_before": 0,
+      "offset_after": 4
+    },
+    {
+      "file": "2.npz",
+      "dtype": "torch.float64",
+      "numel": 600002,
+      "storage_offset_elements": 0,
+      "input_strides": [
+        1
+      ],
+      "ptr_mod_16": 0,
+      "ptr_mod_32": 0,
+      "seed": 17,
+      "p_drop": 0.1,
+      "p_keep": 0.9,
+      "expected_vec_from_primary_source": 2,
+      "sha256": "c1330d472038e1b7a51e64fd5c6ebea16fa329b1cedc9dc08ef676ae59556f52",
+      "mask_sha256": "b93ca4bb88f1b798b7fb68b3927a6f7c0c887bbe01037f7b9485ce8037b83095",
+      "offset_before": 0,
+      "offset_after": 4
+    },
+    {
+      "file": "3.npz",
+      "dtype": "torch.float32",
+      "numel": 600000,
+      "storage_offset_elements": 2,
+      "input_strides": [
+        1
+      ],
+      "ptr_mod_16": 8,
+      "ptr_mod_32": 8,
+      "seed": 17,
+      "p_drop": 0.1,
+      "p_keep": 0.9,
+      "expected_vec_from_primary_source": 2,
+      "sha256": "8a76618be65c2b88e09cdd16865363aef6d63267f0f149135296e8555afe63b3",
+      "mask_sha256": "39e759c32ff11e7309c0f7d247681610d0a295e007cd1569254c838c0855f786",
+      "offset_before": 0,
+      "offset_after": 4
+    }
+  ]
+}

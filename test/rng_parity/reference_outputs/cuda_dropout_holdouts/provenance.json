@@ -1,0 +1,63 @@
+{
+  "assets": "cuda_dropout_holdouts",
+  "purpose": "126 independently recorded CUDA fused_dropout mask/counter oracles (3 seeds x 7 sizes x {float32, float64} x 3 drop probabilities x the recorded vector width). They are expected outputs for the CUDA-compatible dropout parity tests. Diagnostic oracles only: product code never imports them and they are never used as model input.",
+  "source": {
+    "path": "reference/dropout-study/dropout-heldout-oracles.json",
+    "sha256": "c8a9c07b36db6dfa19db6ef1810a9067f439ef1fb93ce98b41ec6fddec129ce8",
+    "recorded_on": "NVIDIA H100 80GB HBM3 with the original CUDA native_dropout/fused_dropout kernels",
+    "note": "The listed recording path is relative to the migration example root and is read-only host content; it is not part of the migrated tree."
+  },
+  "revalidation": {
+    "path": "reference/dropout-study/dropout-heldout-oracles-torch251.json",
+    "sha256": "c8a9c07b36db6dfa19db6ef1810a9067f439ef1fb93ce98b41ec6fddec129ce8",
+    "note": "Byte identical to the primary oracle, so the mask algorithm and the recorded counter advances are stable across torch 2.3.1+cu118 and torch 2.5.1+cu124 on the same 132 SM / 2048-thread H100 profile."
+  },
+  "generation_environment": {
+    "device": "NVIDIA H100 80GB HBM3",
+    "torch": "2.3.1+cu118",
+    "stream_profile": {
+      "sm_count": 132,
+      "max_threads_per_sm": 2048,
+      "block_size": 256
+    },
+    "source_commit": "3e5a5bb1cb98befde9fc049ae3ff58cabb491f67",
+    "pinned_torch_sources": [
+      {
+        "file": "aten/src/ATen/native/cuda/Dropout.cu",
+        "sha256": "ff6b4434bcc02aa95d453e23a7e1f6ffeed42fdfa8249c0ed56ed092ee97bfef"
+      },
+      {
+        "file": "aten/src/ATen/native/cuda/Dropout.cpp",
+        "sha256": "ee594dad68fb0dfd0c6f1f916be6119b0422e73a9d4246bb57ad88dec69a0205"
+      }
+    ]
+  },
+  "copied_files": [
+    {
+      "file": "dropout-heldout-oracles.json",
+      "sha256": "c8a9c07b36db6dfa19db6ef1810a9067f439ef1fb93ce98b41ec6fddec129ce8",
+      "case_count": 126,
+      "case_fields": [
+        "seed",
+        "n",
+        "dtype",
+        "p",
+        "vec",
+        "mismatch",
+        "offset",
+        "post",
+        "mask_sha256",
+        "passed"
+      ]
+    }
+  ],
+  "contract_recorded_by_the_asset": {
+    "mask_sha256": "sha256 of the C-order uint8 0/1 keep mask (mask != 0), the same convention the CPU Bernoulli stream uses",
+    "offset": "Philox offset before the draw",
+    "post": "Philox offset after the draw",
+    "vec": "vector width the recording forced for the case; sizes 3/21/1025/4097 use 1, sizes 6/478 use 2, size 300000 uses 4",
+    "keep_probability": "1 - p",
+    "mismatch": "number of mask elements that differed from the independently derived derivation (0 for every case)"
+  },
+  "usage_restriction": "Expected outputs only. The tests never relax, regenerate or derive an expectation from the candidate module, and nothing in src/ reads these files."
+}

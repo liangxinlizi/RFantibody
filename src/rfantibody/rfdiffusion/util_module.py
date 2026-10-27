@@ -7,6 +7,7 @@ import torch.nn as nn
 
 from rfantibody.graph_factory import make_graph
 from rfantibody.rfdiffusion.util import *
+from rfantibody.rfdiffusion.cdist_compat import cdist
 
 
 def init_lecun_normal(module, scale=1.0):
@@ -146,7 +147,7 @@ def make_topk_graph(xyz, pair, idx, top_k=64, kmin=32, eps=1e-6):
     device = xyz.device
     
     # distance map from current CA coordinates
-    D = torch.cdist(xyz, xyz) + torch.eye(L, device=device).unsqueeze(0)*999.9  # (B, L, L)
+    D = cdist(xyz, xyz) + torch.eye(L, device=device).unsqueeze(0)*999.9  # (B, L, L)
     # seq sep
     sep = idx[:,None,:] - idx[:,:,None]
     sep = sep.abs() + torch.eye(L, device=device).unsqueeze(0)*999.9

@@ -1,0 +1,126 @@
+{
+  "torch": "2.5.1+cu118",
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "tf32": false,
+  "cases": [
+    {
+      "case": 0,
+      "dimensions": [
+        1,
+        1,
+        7,
+        11,
+        1,
+        4
+      ],
+      "file": "case0.npz",
+      "bytes": 1205,
+      "sha256": "f048195b97b898211034c65e17fb95500e91835b36ed97ba83273310a92351b5",
+      "equation": "bnihk,bnjhk->bijh",
+      "input_seed": 728351,
+      "scope": "independent synthetic actualCUDA operator oracle, no model weights/activations"
+    },
+    {
+      "case": 1,
+      "dimensions": [
+        1,
+        7,
+        17,
+        19,
+        2,
+        4
+      ],
+      "file": "case1.npz",
+      "bytes": 10606,
+      "sha256": "50d898ff4570bf23841dd581d36f17dde039b254d3f7a723c670be598e7977eb",
+      "equation": "bnihk,bnjhk->bijh",
+      "input_seed": 728351,
+      "scope": "independent synthetic actualCUDA operator oracle, no model weights/activations"
+    },
+    {
+      "case": 2,
+      "dimensions": [
+        2,
+        13,
+        15,
+        11,
+        2,
+        8
+      ],
+      "file": "case2.npz",
+      "bytes": 41600,
+      "sha256": "31facdb21e8ea7dae0f2e47343eb22aaa2c79f5168d8e31bc59ec187f8ff4b55",
+      "equation": "bnihk,bnjhk->bijh",
+      "input_seed": 728351,
+      "scope": "independent synthetic actualCUDA operator oracle, no model weights/activations"
+    },
+    {
+      "case": 3,
+      "dimensions": [
+        1,
+        26,
+        31,
+        23,
+        2,
+        8
+      ],
+      "file": "case3.npz",
+      "bytes": 89227,
+      "sha256": "d808413ab000693151edfca4451e3485972cae0945213ec54bea2ded400e0b5c",
+      "equation": "bnihk,bnjhk->bijh",
+      "input_seed": 728351,
+      "scope": "independent synthetic actualCUDA operator oracle, no model weights/activations"
+    },
+    {
+      "case": 4,
+      "dimensions": [
+        1,
+        64,
+        27,
+        21,
+        4,
+        16
+      ],
+      "file": "case4.npz",
+      "bytes": 710576,
+      "sha256": "1f3f482fc2d1ce5d18a582f9b955de4897d011f76f9718e6eb8c4b263d251b97",
+      "equation": "bnihk,bnjhk->bijh",
+      "input_seed": 728351,
+      "scope": "independent synthetic actualCUDA operator oracle, no model weights/activations"
+    },
+    {
+      "case": 5,
+      "dimensions": [
+        1,
+        127,
+        20,
+        21,
+        4,
+        32
+      ],
+      "file": "case5.npz",
+      "bytes": 2475916,
+      "sha256": "781ea948bacd2a245417f24e1e7821b1472ac89cb4b90f97253f646e0ddbc9cd",
+      "equation": "bnihk,bnjhk->bijh",
+      "input_seed": 728351,
+      "scope": "independent synthetic actualCUDA operator oracle, no model weights/activations"
+    },
+    {
+      "case": 6,
+      "dimensions": [
+        1,
+        478,
+        13,
+        17,
+        2,
+        32
+      ],
+      "file": "case6.npz",
+      "bytes": 3281902,
+      "sha256": "ae8cd5cc57571586f963f1cca30e0db4e4a1aa46e6e39e54c3cbca4eb1a6845c",
+      "equation": "bnihk,bnjhk->bijh",
+      "input_seed": 728351,
+      "scope": "independent synthetic actualCUDA operator oracle, no model weights/activations"
+    }
+  ]
+}

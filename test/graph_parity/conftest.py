@@ -30,15 +30,19 @@ KERNEL_DIR = PROJECT_ROOT / "csrc" / "ascend_graph"
 BUILD_SCRIPT = KERNEL_DIR / "build.sh"
 INSTALL_DIR = KERNEL_DIR / "install"
 PACKAGE_DIR = PROJECT_ROOT / "src" / "rfantibody" / "ascend_ops"
-DEFAULT_EVIDENCE_DIR = PROJECT_ROOT / "migration_reports" / "graph_parity"
+DEFAULT_EVIDENCE_DIR = PROJECT_ROOT / "outputs" / "evidence" / "graph_parity"
 BUILD_TIMEOUT_SECONDS = 1800
 KERNEL_LIB_NAME = "libascend_graph.so"
 
 
 def evidence_dir() -> Path:
-    """Directory for machine-readable operator-parity evidence."""
+    """Directory for machine-readable operator-parity evidence.
+
+    Defaults to the git-ignored ``outputs/evidence`` tree; override the root
+    with ``RF_EVIDENCE_DIR`` when a run needs a different location.
+    """
     override = os.environ.get("RF_EVIDENCE_DIR")
-    root = Path(override) if override else PROJECT_ROOT / "migration_reports"
+    root = Path(override) if override else PROJECT_ROOT / "outputs" / "evidence"
     return root / "graph_parity"
 
 

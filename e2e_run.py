@@ -22,10 +22,9 @@ with ``e2e_support/sitecustomize.py`` injected through ``PYTHONPATH``.  That
 guard records module placement and module-forward output devices per process
 (including child processes) and a stage without NPU forward activity fails.
 
-Weights, inputs and outputs are resolved from explicit flags or documented
+Weights, inputs and outputs are resolved from explicit flags, documented
 environment variables (``RFANTIBODY_WEIGHTS``, ``RFANTIBODY_ROOT``,
-``RFANTIBODY_SCRIPTS``).  The runner never reads ``migration.yaml``, goal files
-or AutoEngineer task paths.
+``RFANTIBODY_SCRIPTS``) and paths inside this repository only.
 
 Every stage records its exact command, exit code, wall time, input/output
 SHA-256 provenance, device evidence and log path.  Machine-readable results are
@@ -234,7 +233,7 @@ def stage_environment(guard_output: Path, extra: dict[str, str]) -> dict[str, st
         pythonpath_parts.append(env["PYTHONPATH"])
     env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
     env["AE_DEVICE_GUARD_OUT"] = str(guard_output)
-    # This notebook has no usable CUDA device; make an accidental CUDA path
+    # On an Ascend host there is no CUDA device; make an accidental CUDA path
     # fail instead of silently running on the wrong accelerator.
     env["CUDA_VISIBLE_DEVICES"] = ""
     env.update(extra)
@@ -461,7 +460,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--augment-eps", type=float, default=0.0)
     parser.add_argument("--num-recycles", type=int, default=10)
     parser.add_argument("--seed", type=int, default=0,
-                        help="RF2 seed (0 matches the host CUDA reference run; default: 0)")
+                        help="RF2 seed (default: 0)")
     parser.add_argument("--device-index", type=int, default=0)
     parser.add_argument("--stage-timeout", type=int, default=0)
     parser.add_argument(

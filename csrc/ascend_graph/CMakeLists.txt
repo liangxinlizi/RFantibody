@@ -16,7 +16,7 @@ else()
         "-DASCEND_CANN_PACKAGE_PATH=<CANN root>")
 endif()
 
-# Observed SoC of this notebook (tools/env_check.py -> cmake_value).
+# Ascend SoC targeted by the shipped kernels; override with -DSOC_VERSION=<soc>.
 set(SOC_VERSION "ascend910b2c" CACHE STRING "Ascend SoC version")
 set(ASCEND_CANN_PACKAGE_PATH "${ASCEND_HOME}" CACHE STRING "CANN package path")
 set(RUN_MODE "npu" CACHE STRING "run mode")
@@ -33,12 +33,15 @@ include("${ASCENDC_CMAKE}")
 # generated `aclrtlaunch_graph_probe`, `aclrtlaunch_edge_dot_v`,
 # `aclrtlaunch_edge_topology`, `aclrtlaunch_copy_e_sum`,
 # `aclrtlaunch_copy_e_mean`, `aclrtlaunch_edge_softmax_dst`,
-# `aclrtlaunch_avg_pooling` and `aclrtlaunch_max_pooling` host entry points) and
+# `aclrtlaunch_avg_pooling`, `aclrtlaunch_max_pooling` and
+# `aclrtlaunch_tied_attention_logits` host entry points) and
 # ${CMAKE_INSTALL_PREFIX}/include/ascend_graph/aclrtlaunch_*.h.  The shared
 # reduction body lives in `op_kernel/segment_reduce_common.h` (included by the
-# two thin reduction entry translation units) and the shared global-pooling body
+# two thin reduction entry translation units), the shared global-pooling body
 # lives in `op_kernel/pooling_common.h` (included by the two pooling entry
-# translation units).
+# translation units) and the ordered compensated-FMA contraction primitives live
+# in `op_kernel/compensated_fma_ordered.h` (included by the tied-attention
+# entry translation unit).
 ascendc_library(ascend_graph SHARED
     op_kernel/graph_probe.cpp
     op_kernel/e_dot_v.cpp
@@ -47,4 +50,5 @@ ascendc_library(ascend_graph SHARED
     op_kernel/copy_e_mean.cpp
     op_kernel/edge_softmax_dst.cpp
     op_kernel/avg_pooling.cpp
-    op_kernel/max_pooling.cpp)
+    op_kernel/max_pooling.cpp
+    op_kernel/tied_attention_logits.cpp)

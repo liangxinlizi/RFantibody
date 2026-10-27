@@ -15,15 +15,22 @@ dependencies = [
     # * NVIDIA CUDA: install requirements-cuda.txt first; it pins torch 2.3.*
     #   with the cu118 build and the matching DGL wheel.
     "torch>=2.0,<2.6",
-    "numpy>=1.0,<2.0",
-    "hydra-core",
-    "icecream",
-    "opt-einsum",
-    "biotite>=0.38.0",
-    "e3nn",
-    "pyrsistent",
-    "click>=8.0.0",
-    "pandas",
+    # Common dependency pins: the versions the validated NPU/CUDA environments
+    # resolve to, so a fresh install cannot silently move the numerical
+    # behaviour of the graph, sequence and structure stages.
+    "numpy==1.26.4",
+    "scipy==1.15.3",
+    "hydra-core==1.3.2",
+    "omegaconf==2.3.0",
+    "icecream==2.2.0",
+    "opt-einsum==3.4.0",
+    "sympy==1.13.1",
+    "biotite==1.2.0",
+    "biotraj==1.2.2",
+    "e3nn==0.5.9",
+    "pyrsistent==0.20.0",
+    "click==8.1.8",
+    "pandas==2.3.3",
 ]
 
 [project.optional-dependencies]
@@ -31,7 +38,7 @@ dependencies = [
 # reference for graph-operator parity and by the original repository tests; it
 # is never the execution route of the migrated NPU product path.
 test = [
-    "pytest>=8.0.0",
+    "pytest==9.1.1",
     "isort>=5.13.2",
     "dgl==1.1.3",
 ]

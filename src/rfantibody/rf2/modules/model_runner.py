@@ -78,7 +78,7 @@ class AbPredictor(Predictor):
         # ``self.lddt_bins.device`` (CPU for this upstream code path, exactly as in the
         # CUDA reference run), so the running best must live on that same device.
         # CUDA silently accepts a 0-dim CPU tensor as a wrapped number; torch_npu
-        # rejects the mixed comparison (iteration 11: model_runner.py:96).
+        # rejects the mixed comparison (model_runner.py:96 in the upstream source).
         metric_device = self.lddt_bins.device
         best_lddt = torch.tensor([-1.0], device=metric_device)
 

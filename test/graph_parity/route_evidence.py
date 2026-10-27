@@ -118,7 +118,7 @@ _AI_CORE_TASK_TYPE = "AI_CORE"
 def evidence_dir() -> Path:
     """Directory for machine-readable route evidence (honours ``RF_EVIDENCE_DIR``)."""
     override = os.environ.get("RF_EVIDENCE_DIR")
-    root = Path(override) if override else PROJECT_ROOT / "migration_reports"
+    root = Path(override) if override else PROJECT_ROOT / "outputs" / "evidence"
     return root / EVIDENCE_DIR_NAME
 
 
