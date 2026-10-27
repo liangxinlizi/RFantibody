@@ -3,6 +3,7 @@ import copy
 import numpy as np
 import torch
 
+from rfantibody import rng as antibody_rng
 from rfantibody.proteinmpnn.model.protein_mpnn_utils import (
     ProteinMPNN,
     _S_to_seq,
@@ -279,7 +280,7 @@ def generate_sequences( model, device, feature_dict, arg_dict, masked_chains, vi
         pssm_threshold = 0 # Nate is hardcoding this
         pssm_log_odds_mask = (pssm_log_odds_all > pssm_threshold).float() #1.0 for true, 0.0 for false
 
-        randn_1 = torch.randn(chain_M.shape, device=X.device)
+        randn_1 = antibody_rng.randn(chain_M.shape, device=X.device, dtype=torch.float32)
         log_probs = model(X, S, mask, chain_M*chain_M_pos, residue_idx, chain_encoding_all, randn_1)
         mask_for_loss = mask*chain_M*chain_M_pos
         scores = _scores(S, log_probs, mask_for_loss)

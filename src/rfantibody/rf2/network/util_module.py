@@ -1,10 +1,10 @@
 import copy
 
-import dgl
 import numpy as np
 import torch
 import torch.nn as nn
 
+from rfantibody.graph_factory import make_graph
 from rfantibody.rf2.network.util import *
 
 
@@ -182,7 +182,7 @@ def make_graph_w_2nodes(xyz, pair, idx, top_k_BB=64, top_k_SC=64, kmin=32, eps=1
     tgt = torch.cat(tgt)
     edge_feat = torch.cat(edge_feat, dim=0)
 
-    G = dgl.graph((src, tgt), num_nodes=B*L*2).to(device)
+    G = make_graph(src, tgt, B*L*2, device)
     G.edata['rel_pos'] = (xyz.view(-1,3)[tgt] - xyz.view(-1,3)[src]).detach() # no gradient through basis function
 
     return G, edge_feat[...,None]
@@ -206,7 +206,7 @@ def make_full_graph(xyz, pair, idx, top_k=64, kmin=9):
    
     src = b*L+i
     tgt = b*L+j
-    G = dgl.graph((src, tgt), num_nodes=B*L).to(device)
+    G = make_graph(src, tgt, B*L, device)
     G.edata['rel_pos'] = (xyz[b,j,:] - xyz[b,i,:]).detach() # no gradient through basis function
 
     return G, pair[b,i,j][...,None]
@@ -260,7 +260,7 @@ def make_topk_graph(xyz, pair, idx, top_k=128, kmin=32, eps=1e-6):
 
     src = b*L+i
     tgt = b*L+j
-    G = dgl.graph((src, tgt), num_nodes=B*L).to(device)
+    G = make_graph(src, tgt, B*L, device)
     G.edata['rel_pos'] = (xyz[b,j,:] - xyz[b,i,:]).detach() # no gradient through basis function
 
     b,i,j = b.to(pair.device), i.to(pair.device), j.to(pair.device)

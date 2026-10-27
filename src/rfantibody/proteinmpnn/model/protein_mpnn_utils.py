@@ -18,6 +18,9 @@ from torch import optim
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Subset, random_split
 
+from rfantibody import rng as antibody_rng
+from rfantibody.proteinmpnn.gelu_compat import GELUExactNone
+
 #A number of functions/classes are adopted from: https://github.com/jingraham/neurips19-graph-protein-design
 
 def parse_fasta(filename,limit=-1, omit=[]):
@@ -644,7 +647,7 @@ class EncLayer(nn.Module):
         self.W11 = nn.Linear(num_hidden + num_in, num_hidden, bias=True)
         self.W12 = nn.Linear(num_hidden, num_hidden, bias=True)
         self.W13 = nn.Linear(num_hidden, num_hidden, bias=True)
-        self.act = torch.nn.GELU()
+        self.act = GELUExactNone()
         self.dense = PositionWiseFeedForward(num_hidden, num_hidden * 4)
 
     def forward(self, h_V, h_E, E_idx, mask_V=None, mask_attend=None):
@@ -687,7 +690,7 @@ class DecLayer(nn.Module):
         self.W1 = nn.Linear(num_hidden + num_in, num_hidden, bias=True)
         self.W2 = nn.Linear(num_hidden, num_hidden, bias=True)
         self.W3 = nn.Linear(num_hidden, num_hidden, bias=True)
-        self.act = torch.nn.GELU()
+        self.act = GELUExactNone()
         self.dense = PositionWiseFeedForward(num_hidden, num_hidden * 4)
 
     def forward(self, h_V, h_E, mask_V=None, mask_attend=None):
@@ -720,7 +723,7 @@ class PositionWiseFeedForward(nn.Module):
         super(PositionWiseFeedForward, self).__init__()
         self.W_in = nn.Linear(num_hidden, num_ff, bias=True)
         self.W_out = nn.Linear(num_ff, num_hidden, bias=True)
-        self.act = torch.nn.GELU()
+        self.act = GELUExactNone()
     def forward(self, h_V):
         h = self.act(self.W_in(h_V))
         h = self.W_out(h)
@@ -875,7 +878,7 @@ class CA_ProteinFeatures(nn.Module):
     def forward(self, Ca, mask, residue_idx, chain_labels):
         """ Featurize coordinates as an attributed graph """
         if self.augment_eps > 0:
-            Ca = Ca + self.augment_eps * torch.randn_like(Ca)
+            Ca = Ca + self.augment_eps * antibody_rng.randn_like(Ca)
 
         D_neighbors, E_idx, mask_neighbors = self._dist(Ca, mask)
 
@@ -967,7 +970,7 @@ class ProteinFeatures(nn.Module):
 
     def forward(self, X, mask, residue_idx, chain_labels):
         if self.augment_eps > 0:
-            X = X + self.augment_eps * torch.randn_like(X)
+            X = X + self.augment_eps * antibody_rng.randn_like(X)
         
         b = X[:,:,1,:] - X[:,:,0,:]
         c = X[:,:,2,:] - X[:,:,1,:]
@@ -1182,7 +1185,7 @@ class ProteinMPNN(nn.Module):
                     omit_AA_mask_gathered = torch.gather(omit_AA_mask, 1, t[:,None, None].repeat(1,1,omit_AA_mask.shape[-1]))[:,0] #[B, 21]
                     probs_masked = probs*(1.0-omit_AA_mask_gathered)
                     probs = probs_masked/torch.sum(probs_masked, dim=-1, keepdim=True) #[B, 21]
-                S_t = torch.multinomial(probs, 1)
+                S_t = antibody_rng.multinomial(probs, 1)
                 all_probs.scatter_(1, t[:,None,None].repeat(1,1,21), (chain_mask_gathered[:,:,None,]*probs[:,None,:]).float())
             S_true_gathered = torch.gather(S_true, 1, t[:,None])
             S_t = (S_t*chain_mask_gathered+S_true_gathered*(1.0-chain_mask_gathered)).long()
@@ -1284,7 +1287,7 @@ class ProteinMPNN(nn.Module):
                     omit_AA_mask_gathered = omit_AA_mask[:,t]
                     probs_masked = probs*(1.0-omit_AA_mask_gathered)
                     probs = probs_masked/torch.sum(probs_masked, dim=-1, keepdim=True) #[B, 21]
-                S_t_repeat = torch.multinomial(probs, 1).squeeze(-1)
+                S_t_repeat = antibody_rng.multinomial(probs, 1).squeeze(-1)
                 S_t_repeat = (chain_mask[:,t]*S_t_repeat + (1-chain_mask[:,t])*S_true[:,t]).long() #hard pick fixed positions
                 for t in t_list:
                     h_S[:,t,:] = self.W_s(S_t_repeat)

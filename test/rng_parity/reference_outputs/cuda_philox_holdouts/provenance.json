@@ -1,0 +1,59 @@
+{
+  "assets": "cuda_philox_holdouts",
+  "purpose": "Independent CUDA draw oracles for the CUDA-compatible RNG parity tests. Expected outputs only; never imported by product code.",
+  "source": {
+    "path": "reference/cuda-rng-study/rng-holdouts",
+    "collector": {
+      "path": "reference/cuda-rng-study/collect_holdouts.py",
+      "sha256": "c873eb4373a7ca15cde80d7423a1bb824a083832f96e71fa3d011f2153a81725"
+    },
+    "manifest": {
+      "file": "manifest.json",
+      "sha256": "998d6105acf396d419cecac5fe23b6ffbba5366c12a8cebf58692fe35cb95556"
+    }
+  },
+  "generation_environment": {
+    "device": "NVIDIA H100 80GB HBM3",
+    "torch": "2.3.1+cu118",
+    "sm_count": 132,
+    "max_threads_per_sm": 2048,
+    "block_size": 256
+  },
+  "cases": {
+    "count": 84,
+    "seeds": [
+      0,
+      17,
+      987654321,
+      9223372036854775809
+    ],
+    "numel": [
+      3,
+      21,
+      478,
+      956,
+      1025,
+      4097,
+      300000
+    ],
+    "kinds": [
+      "normal",
+      "exponential",
+      "exponential"
+    ],
+    "dtypes": [
+      "torch.float32",
+      "torch.float32",
+      "torch.float64"
+    ],
+    "per_case_keys": [
+      "value",
+      "state_before",
+      "state_after"
+    ]
+  },
+  "copy": {
+    "method": "byte-for-byte copy of rng-holdouts/*.npz and manifest.json",
+    "verification": "every copied file's sha256 equals the manifest row sha256; manifest sha256 recorded above"
+  }
+}

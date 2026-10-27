@@ -1,0 +1,75 @@
+{
+  "scope": "independent CUDA defaultcdist geometry holdouts, not neural model outputs; tests only",
+  "torch": "2.5.1+cu118",
+  "device": "NVIDIA H100 80GB HBM3",
+  "tf32": false,
+  "seed": 790132026,
+  "cases": [
+    {
+      "case": 0,
+      "batch": 1,
+      "n": 26,
+      "m": 26,
+      "self": true,
+      "scale": 0.01,
+      "offset": 0,
+      "file": "0.npz",
+      "sha256": "11a56482bee052bf656748dff6980f4448a1526fd5f9d61fcefc5828ac3750f7"
+    },
+    {
+      "case": 1,
+      "batch": 1,
+      "n": 37,
+      "m": 53,
+      "self": false,
+      "scale": 1.0,
+      "offset": 20,
+      "file": "1.npz",
+      "sha256": "b1c0e550ed38436adca66dfbcf40985164ee9d55980620285030d0af52af9def"
+    },
+    {
+      "case": 2,
+      "batch": 1,
+      "n": 129,
+      "m": 129,
+      "self": true,
+      "scale": 100.0,
+      "offset": 0,
+      "file": "2.npz",
+      "sha256": "d53ac2affed4188bb4438983c56a7890d4bd99946f8c3519cee9ba3fcc46193b"
+    },
+    {
+      "case": 3,
+      "batch": 2,
+      "n": 91,
+      "m": 129,
+      "self": false,
+      "scale": 10.0,
+      "offset": 2000,
+      "file": "3.npz",
+      "sha256": "94bedd7e6b884f4e40f0399d145a87b7ddd20600af3a9036e0e14a7efb5421fb"
+    },
+    {
+      "case": 4,
+      "batch": 1,
+      "n": 478,
+      "m": 478,
+      "self": true,
+      "scale": 50.0,
+      "offset": 0,
+      "file": "4.npz",
+      "sha256": "3fe16751d173e01c9a5d64bb62c03c5d0d0920222ace4ea2d00aba362775d83f"
+    },
+    {
+      "case": 5,
+      "batch": 1,
+      "n": 533,
+      "m": 271,
+      "self": false,
+      "scale": 1000.0,
+      "offset": 0,
+      "file": "5.npz",
+      "sha256": "0b7dcc855f89d5ab17699ad7e5145d0141c7b53872019a6c186c0c1b320bf41e"
+    }
+  ]
+}

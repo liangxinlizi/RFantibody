@@ -1,7 +1,7 @@
 # RFantibody
 ### Structure-Based _de novo_ Antibody Design
 
-![](https://github.com/RosettaCommons/RFantibody/blob/main/github_image.png)
+![](github_image.png)
 
 # Description
 RFantibody is a pipeline for the structure-based design of _de novo_ antibodies and nanobodies. RFantibody consists of three separate methods:
@@ -13,9 +13,11 @@ The RFantibody pipeline is described in detail in [this preprint](https://www.bi
 
 # Table of Contents
 - [Requirements](#requirements)
-- [Downloading Weights](#downloading-weights)
+- [Downloading Weights](#3-download-model-weights)
 - [Installation](#installation)
   - [Local Installation (Without Docker)](#local-installation-without-docker)
+  - [Ascend NPU Installation](#ascend-npu-installation)
+  - [CUDA Installation](#cuda-installation)
   - [Docker Installation (Alternative)](#docker-installation-alternative)
   - [Apptainer Installation (HPC)](#apptainer-installation-hpc)
 - [Command Line Interface](#command-line-interface)
@@ -42,17 +44,23 @@ The RFantibody pipeline is described in detail in [this preprint](https://www.bi
 
 # Requirements
 
-### GPU Acceleration
+### Accelerator Support
 
-RFantibody requires an NVIDIA GPU with CUDA support to run. You can check whether you have a compatible NVIDIA GPU available by running:
+RFantibody runs on an NVIDIA GPU with CUDA support or on a Huawei Ascend NPU
+with the vendor `torch` + `torch_npu` + CANN stack. On an NVIDIA host you can
+check whether a compatible GPU is available by running:
 ```
 nvidia-smi
 ```
-If this command runs successfully then you have a compatible GPU and RFantibody will be able to run on it.
+If this command runs successfully then RFantibody will be able to run on that
+GPU. For the Ascend NPU path see
+[Ascend NPU Installation](#ascend-npu-installation). Inference on CPU only is
+not supported.
 
 ### System Requirements
 
-- **GPU**: NVIDIA GPU with CUDA 11.8+ support
+- **Accelerator**: NVIDIA GPU with CUDA 11.8+ support, **or** Huawei Ascend NPU
+  with the vendor PyTorch stack (`torch`, `torch_npu`, CANN)
 - **OS**: Linux (Ubuntu 22.04 recommended)
 
 
@@ -76,7 +84,7 @@ source ~/.bashrc  # or ~/.zshrc if using zsh
 ### 2. Clone the Repository
 
 ```bash
-git clone https://github.com/RosettaCommons/RFantibody.git
+git clone -b feat/ascend-npu-single-goal-1022 https://github.com/liangxinlizi/RFantibody.git
 cd RFantibody
 ```
 
@@ -88,38 +96,189 @@ bash include/download_weights.sh
 
 ### 4. Set Up the Python Environment
 
-From the RFantibody directory, run:
-```bash
-uv sync
-```
-This uses uv to:
-- Download Python 3.10 if not already installed
-- Create a virtual environment in `.venv/`
-- Install all dependencies including PyTorch with CUDA 11.8 support
-- Install [Deep Graph Library](https://www.dgl.ai) from CUDA-enabled wheels
+Choose the setup for your accelerator:
+
+- [Ascend NPU Installation](#ascend-npu-installation) creates `.venv/` and
+  inherits the installed vendor PyTorch stack.
+- [CUDA installation](#cuda-installation) creates `.venv-cuda/` and installs
+  the CUDA dependencies.
 
 ### 5. Activate the Environment
 
-After setup, you can either:
+For the Ascend environment:
 
-**Option A**: Activate the virtual environment (recommended):
 ```bash
 source .venv/bin/activate
 rfdiffusion --help
+proteinmpnn --help
+rf2 --help
 ```
 
-**Option B**: Prefix commands with `uv run`:
+For CUDA, activate `.venv-cuda/bin/activate` instead.
+
+---
+
+## Ascend NPU Installation
+
+RFantibody can also run on Huawei Ascend NPUs through the vendor PyTorch stack
+(`torch` + `torch_npu` + CANN).  The vendor stack is treated as read-only: the
+project environment inherits it instead of reinstalling PyTorch.
+
+### 1. Create the environment
+
 ```bash
-uv run rfdiffusion --help
+# Load the CANN environment (provides ASCEND_HOME_PATH and vendor PYTHONPATH)
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+# Python 3.10 environment that inherits the vendor torch + torch_npu stack
+python3.10 -m venv --system-site-packages .venv
+.venv/bin/python -m pip install uv
+.venv/bin/python -m pip install -e ".[test]"
 ```
 
-### Verifying the Installation
+`[test]` installs the test tooling and the CPU DGL build that is used as the
+independent reference for graph-operator parity.  `.[npu]` is intentionally
+empty: `torch`, `torch_npu` and CANN come from the system installation.  Do not
+run `uv sync` in this environment, because it would install a PyPI torch wheel
+on top of the vendor stack.
 
-Run the following to verify that RFantibody is installed correctly:
+### 2. Build the native AscendC kernels
+
 ```bash
-uv run rfdiffusion --help
+bash csrc/ascend_graph/build.sh
 ```
-This should display the RFdiffusion help message with available options.
+
+This compiles the native AscendC graph operators and the tied-attention kernel
+against the installed CANN toolkit through the official `ascendc.cmake` route
+(`ascendc_library`), and stages `src/rfantibody/ascend_ops/libascend_graph.so`
+together with the Python binding used by `rfantibody.ascend_ops`.  The driver
+uses `ASCEND_HOME_PATH` (default `/usr/local/Ascend/ascend-toolkit/latest`) and
+`.venv/bin/python` unless `PYTHON` is set, and it is idempotent: re-run it after
+changing anything under `csrc/ascend_graph/`.  The kernel parity and route tests
+under `test/graph_parity/` rebuild the artifact through the same driver when it
+is missing or older than its sources.
+
+### 3. Download the model weights
+
+Download the checkpoints into the repository's `weights/` directory:
+
+```bash
+bash include/download_weights.sh
+export RFANTIBODY_WEIGHTS="$PWD/weights"
+```
+
+The pipeline uses `RFdiffusion_Ab.pt`, `ProteinMPNN_v48_noise_0.2.pt`, and
+`RF2_ab.pt`. The RF2 JSON tests also use
+`RFab_noframework-nosidechains-5-10-23_trainingparamsadded.pt`. The download
+script obtains all four checkpoints; the files are excluded from Git.
+
+The repository uses `weights/` by default. To select another checkpoint
+directory, set `RFANTIBODY_WEIGHTS` or pass `--weights-dir` to `e2e_run.py`.
+Individual inference commands accept `--weights` for a checkpoint file.
+
+The test suite selects the versioned `H100_references` set on a genuine Ascend
+NPU (`test/util/device_selection.py`) and keeps the original comparison
+thresholds; on an A4000/H100 it keeps selecting the matching CUDA reference set.
+
+### 4. Run the tests and the end-to-end pipeline
+
+```bash
+export UV_PROJECT="$PWD"
+export UV_PROJECT_ENVIRONMENT="$PWD/.venv"
+export UV_NO_SYNC=1
+.venv/bin/python -m pytest test -ra
+.venv/bin/python e2e_run.py            # RFdiffusion -> ProteinMPNN -> RF2 on NPU
+```
+
+`e2e_run.py` runs the acceptance chain (RSV site 3 target, `hu-4D5-8_Fv`
+framework, the documented hotspots/loops, `diffuser.T=50`, `final_step=1`,
+deterministic, then ProteinMPNN `seqs_per_struct=1`/`temperature=0.2`/
+`augment_eps=0`, then RF2 with 10 recycles).  It aborts instead of falling back
+to CPU and exits 0 only when every stage passes.  The checkpoint directory is
+supplied with `--weights-dir`:
+
+```bash
+.venv/bin/python e2e_run.py --weights-dir "$PWD/weights"
+```
+
+Without the flag it uses `RFANTIBODY_WEIGHTS` or the repository `weights/` directory.
+
+The repository scripts and the Quiver tests invoke `uv run <command>` from
+arbitrary working directories.  To make those invocations use the installed
+project environment (rather than creating a new one), export:
+
+```bash
+export UV_PROJECT=$PWD
+export UV_NO_SYNC=1
+```
+
+### 5. Reproducible random streams on the NPU
+
+`rfantibody.rng` provides CUDA-compatible Philox streams for the NPU inference
+path. It maintains random state per process and device and supports the
+normal, exponential, multinomial, and dropout helpers used by the models.
+Random variates and masks are generated on CPU and placed on the requested
+device. CPU and CUDA inputs use the corresponding PyTorch operations.
+
+The stream layout is configured by `CUDA_RNG_PROFILE` in
+`src/rfantibody/rng.py`. Set `RFANTIBODY_CUDA_RNG_PROFILE` to override its
+multiprocessor count, threads per multiprocessor, and block size. The supported
+distributions, dtype contracts, state transitions, and reference inputs are
+covered by `test/rng_parity/`.
+
+### 6. CUDA-order contraction of the RFdiffusion tied attention
+
+RFdiffusion's tied-attention contraction is selected by
+`rfantibody.attention_backend`. On NPU, `ascend_graph::tied_attention_logits`
+uses an ordered float32 accumulation implemented in AscendC. On CPU and CUDA,
+the backend calls the `opt_einsum` contraction.
+
+Build the native operator with `bash csrc/ascend_graph/build.sh`. Its parity,
+dispatch, and execution-route tests are in
+`test/graph_parity/test_tied_attention_parity.py`; the reference inputs and
+expected outputs are bundled in `test/graph_parity/cuda_ordered_holdouts/`.
+
+### 7. CUDA-compatible `cdist` geometry
+
+`rfantibody.rfdiffusion.cdist_compat.cdist` supplies the float32 NPU distance
+calculations used by RFdiffusion. For large point sets it implements the
+padded-matrix evaluation order with compensated arithmetic on the input
+device. It preserves the direct-distance route when both point counts are at
+most 25. CPU and CUDA inputs delegate to `torch.cdist`.
+
+The wrapper is used by the template and Cb distance calculations in
+`Embeddings.py`, the distance calculations in `Track_module.py`, and the
+nearest-neighbour graph in `util_module.py`. The tests in
+`test/rfdiffusion/test_cdist_compat.py` cover reference values, shapes, and
+broadcasting using the inputs in
+`test/rfdiffusion/reference_outputs/cdist_cuda_holdouts/`.
+
+## CUDA Installation
+
+The original CUDA path is preserved in `requirements-cuda.txt`
+(torch 2.3 + cu118 and the matching cu118 DGL wheel):
+
+```bash
+python3.10 -m venv .venv-cuda
+.venv-cuda/bin/python -m pip install --upgrade pip
+.venv-cuda/bin/python -m pip install -r requirements-cuda.txt
+.venv-cuda/bin/python -m pip install -e .
+.venv-cuda/bin/python -m pip install uv
+```
+
+`requirements-cuda.txt` pins the accelerator packages only, so the editable
+install in the third step is what installs the common model dependencies and the
+console scripts from `pyproject.toml`; it keeps the cu118 torch and DGL wheels
+that step two installed, because `torch>=2.0,<2.6` is already satisfied. Do not
+install the `[test]` extra on a CUDA host: it pins the CPU DGL build that is the
+independent reference on the Ascend path (`dgl==1.1.3`) and would replace the
+cu118 DGL wheel. Install the test tooling on its own instead:
+
+```bash
+.venv-cuda/bin/python -m pip install pytest==9.1.1 "isort>=5.13.2"
+```
+
+Every console script (`rfdiffusion`, `proteinmpnn`, `rf2`, `qvls`, ...) is then
+available under `.venv-cuda/bin/`.
 
 ---
 

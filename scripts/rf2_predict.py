@@ -6,6 +6,8 @@ from hydra.core.hydra_config import HydraConfig
 
 import rfantibody.rf2.modules.pose_util as pu
 import rfantibody.rf2.modules.util as util
+import rfantibody.rng as antibody_rng
+from rfantibody.device import get_accelerator_device, npu_available
 from rfantibody.rf2.modules.model_runner import AbPredictor
 from rfantibody.rf2.modules.preprocess import Preprocess, pose_to_inference_RFinput
 
@@ -25,11 +27,15 @@ def main(conf: HydraConfig) -> None:
         np.random.seed(seed)
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
+        if npu_available():
+            torch.npu.manual_seed_all(seed)
+            antibody_rng.manual_seed(seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
     
     done_list=util.get_done_list(conf)
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = get_accelerator_device(index=0, require_accelerator=True)
+    print(f'RF2 accelerator device: {device}')
     preprocessor=Preprocess(pose_to_inference_RFinput, conf)
     predictor=AbPredictor(conf, preprocess_fn=preprocessor, device=device)
     for pose, tag in pu.pose_generator(conf):

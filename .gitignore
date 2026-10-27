@@ -19,3 +19,20 @@ dist
 scratch
 .DS_Store
 .devcontainer
+# Ascend NPU local environment / acceptance outputs
+.venv/
+.pytest_cache/
+.hf_cache/
+
+# Host/engine scratch file occasionally written into the working directory
+/fusion_result.json
+
+# Native AscendC graph operator build artifacts and parity evidence
+csrc/ascend_graph/build/
+csrc/ascend_graph/install/
+csrc/ascend_graph/*.egg-info/
+src/rfantibody/ascend_ops/*.so
+
+# Vendor artefacts the CANN compiler / torch_npu profiler write into the cwd
+/export_only_prof_dir/
+/kernel_meta/

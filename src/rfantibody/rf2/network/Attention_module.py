@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import einsum
 
+from rfantibody.rng import CudaCompatDropout
 from rfantibody.rf2.network.util_module import init_lecun_normal
 
 
@@ -13,7 +14,7 @@ class FeedForwardLayer(nn.Module):
         super(FeedForwardLayer, self).__init__()
         self.norm = nn.LayerNorm(d_model)
         self.linear1 = nn.Linear(d_model, d_model*r_ff)
-        self.dropout = nn.Dropout(p_drop)
+        self.dropout = CudaCompatDropout(p_drop)  # CUDA-compatible device dropout
         self.linear2 = nn.Linear(d_model*r_ff, d_model)
 
         self.reset_parameter()
@@ -132,7 +133,7 @@ class SequenceWeight(nn.Module):
 
         self.to_query = nn.Linear(d_msa, n_head*d_hidden)
         self.to_key = nn.Linear(d_msa, n_head*d_hidden)
-        self.dropout = nn.Dropout(p_drop)
+        self.dropout = CudaCompatDropout(p_drop)  # CUDA-compatible device dropout
 
         self.reset_parameter()
     

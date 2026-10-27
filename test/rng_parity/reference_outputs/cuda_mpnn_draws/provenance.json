@@ -1,0 +1,72 @@
+{
+  "assets": "cuda_mpnn_draws",
+  "purpose": "In-situ CUDA draws of the original deterministic ProteinMPNN script (seed 42) used as expected outputs for the CUDA-compatible RNG parity tests. Diagnostic oracles only; never imported by product code and never used as model input.",
+  "source": {
+    "path": "reference/cuda-rng-study/events/1664141",
+    "events_index": {
+      "file": "events.jsonl",
+      "sha256": "3febf454437a338454e5b8100744cc9a6b2a6684180f1983154307069be26495"
+    },
+    "study": {
+      "path": "reference/cuda-rng-study/complete.json",
+      "sha256": "95ba9686ef81043cc8ca75fcc90e0d95946e4e6766636d9c3022bf3ebc96408a"
+    }
+  },
+  "generation_environment": {
+    "device": "NVIDIA H100 80GB HBM3",
+    "torch": "2.3.1+cu118",
+    "sm_count": 132,
+    "max_threads_per_sm": 2048,
+    "block_size": 256,
+    "script": "test/proteinmpnn/scripts/ab_seq_design.sh (--deterministic, seed 42, --augment-eps 0)"
+  },
+  "copied_files": [
+    {
+      "file": "00000_randn.npz",
+      "kind": "randn",
+      "shape": [
+        1,
+        478
+      ],
+      "dtype": "torch.float32",
+      "sha256": "290bfdb7219814f8cf2dc10dc1b986b42dbdd57bbcbc812c7d8320eefa779bb8",
+      "state_before_offset": 0,
+      "state_after_offset": 4,
+      "keys": [
+        "value",
+        "state_before",
+        "state_after"
+      ]
+    },
+    {
+      "file": "00001_multinomial.npz",
+      "kind": "multinomial",
+      "shape": [
+        1,
+        21
+      ],
+      "num_samples": 1,
+      "replacement": false,
+      "sha256": "6d34b00341bd5c6614bcaca998228b028a108482e6af3963ed25792b90e9e90b",
+      "state_before_offset": 4,
+      "state_after_offset": 8,
+      "keys": [
+        "probabilities",
+        "sample",
+        "state_before",
+        "state_after",
+        "independent_exponential_noise"
+      ]
+    }
+  ],
+  "stream": {
+    "seed": 42,
+    "draws": 957,
+    "composition": "1 x float32 normal (1, 478) followed by 956 x float64 multinomial exponential races on (1, 21) probabilities",
+    "final_offset": 3828
+  },
+  "copy": {
+    "method": "byte-for-byte copy of the two npz files",
+    "verification": "sha256 of each copied file equals the value recorded in events.jsonl and above"
+  }
+}

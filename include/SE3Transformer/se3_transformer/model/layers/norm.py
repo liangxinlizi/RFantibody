@@ -27,9 +27,9 @@ from typing import Dict
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.cuda.nvtx import range as nvtx_range
 
 from se3_transformer.model.fiber import Fiber
+from se3_transformer.runtime.compat import nvtx_range
 
 
 class NormSE3(nn.Module):

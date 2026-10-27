@@ -9,28 +9,51 @@ authors = [
     { name = "Joe Watchwell", email = "joe.watchwell@gmail.com" }
 ]
 dependencies = [
-    "torch==2.3.*",
-    "torchaudio",
-    "torchvision",
-    "torch-utils",
-    "numpy>=1.0,<2.0",
-    "cuda-python==11.8",
-    "hydra-core",
-    "icecream",
-    "opt-einsum",
-    "biotite>=0.38.0",
-    "dgl",
-    "e3nn",
-    "pyrsistent",
-    "click>=8.0.0",
-    "pandas",
+    # The accelerator build of torch is supplied by the runtime stack:
+    # * Ascend NPU: the validated system torch + torch_npu + CANN stack is
+    #   inherited with `uv venv --system-site-packages`.
+    # * NVIDIA CUDA: install requirements-cuda.txt first; it pins torch 2.3.*
+    #   with the cu118 build and the matching DGL wheel.
+    "torch>=2.0,<2.6",
+    # Common dependency pins: the versions the validated NPU/CUDA environments
+    # resolve to, so a fresh install cannot silently move the numerical
+    # behaviour of the graph, sequence and structure stages.
+    "numpy==1.26.4",
+    "scipy==1.15.3",
+    "hydra-core==1.3.2",
+    "omegaconf==2.3.0",
+    "icecream==2.2.0",
+    "opt-einsum==3.4.0",
+    "sympy==1.13.1",
+    "biotite==1.2.0",
+    "biotraj==1.2.2",
+    "e3nn==0.5.9",
+    "pyrsistent==0.20.0",
+    "click==8.1.8",
+    "pandas==2.3.3",
 ]
 
 [project.optional-dependencies]
+# Test tooling plus the real CPU DGL build. DGL is used as the independent
+# reference for graph-operator parity and by the original repository tests; it
+# is never the execution route of the migrated NPU product path.
 test = [
-    "pytest>=8.0.0",
+    "pytest==9.1.1",
     "isort>=5.13.2",
+    "dgl==1.1.3",
 ]
+# CUDA installation path. Install with:
+#   python -m pip install -r requirements-cuda.txt
+#   python -m pip install --no-deps -e .
+cuda = [
+    "torch==2.3.*",
+    "torchaudio==2.3.*",
+    "torchvision==0.18.*",
+    "cuda-python==11.8",
+]
+# Ascend NPU installation path: torch, torch_npu and CANN come from the
+# validated vendor stack, so this extra intentionally installs nothing extra.
+npu = []
 
 [project.scripts]
 # Quiver utilities
@@ -47,16 +70,8 @@ rfdiffusion = "rfantibody.cli.inference:rfdiffusion"
 proteinmpnn = "rfantibody.cli.inference:proteinmpnn"
 rf2 = "rfantibody.cli.inference:rf2"
 
-[tool.uv.sources]
-torch = { index = "pytorch" }
-torchaudio = { index = "pytorch" }
-torchvision = { index = "pytorch" }
-dgl = { url = "https://data.dgl.ai/wheels/torch-2.3/cu118/dgl-2.4.0%2Bcu118-cp310-cp310-manylinux1_x86_64.whl" }
-
-[[tool.uv.index]]
-name = "pytorch"
-url = "https://download.pytorch.org/whl/cu118"
-explicit = true
+# CUDA-only dependency overrides live in requirements-cuda.txt so that the
+# default (NPU/CPU) resolution never replaces the validated vendor torch stack.
 
 [build-system]
 requires = ["hatchling"]
