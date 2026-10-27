@@ -18,24 +18,33 @@
     "sm_count": 132,
     "max_threads_per_sm": 2048,
     "block_size": 256,
-    "source_commit": "3e5a5bb1cb98befde9fc049ae3ff58cabb491f67",
     "script": "test/proteinmpnn/scripts/ab_seq_design.sh (--deterministic, seed 42, --augment-eps 0)"
   },
   "copied_files": [
     {
       "file": "00000_randn.npz",
       "kind": "randn",
-      "shape": [1, 478],
+      "shape": [
+        1,
+        478
+      ],
       "dtype": "torch.float32",
       "sha256": "290bfdb7219814f8cf2dc10dc1b986b42dbdd57bbcbc812c7d8320eefa779bb8",
       "state_before_offset": 0,
       "state_after_offset": 4,
-      "keys": ["value", "state_before", "state_after"]
+      "keys": [
+        "value",
+        "state_before",
+        "state_after"
+      ]
     },
     {
       "file": "00001_multinomial.npz",
       "kind": "multinomial",
-      "shape": [1, 21],
+      "shape": [
+        1,
+        21
+      ],
       "num_samples": 1,
       "replacement": false,
       "sha256": "6d34b00341bd5c6614bcaca998228b028a108482e6af3963ed25792b90e9e90b",

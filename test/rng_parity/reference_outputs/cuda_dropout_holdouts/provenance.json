@@ -20,7 +20,6 @@
       "max_threads_per_sm": 2048,
       "block_size": 256
     },
-    "source_commit": "3e5a5bb1cb98befde9fc049ae3ff58cabb491f67",
     "pinned_torch_sources": [
       {
         "file": "aten/src/ATen/native/cuda/Dropout.cu",

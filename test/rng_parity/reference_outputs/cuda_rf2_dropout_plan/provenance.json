@@ -17,7 +17,6 @@
       "max_threads_per_sm": 2048,
       "block_size": 256
     },
-    "source_commit": "3e5a5bb1cb98befde9fc049ae3ff58cabb491f67",
     "script": "test/rf2/scripts/ab_prediction.sh (unchanged original RF2 case, fixed inputs, seed 42)",
     "pinned_torch_sources": [
       {
@@ -43,7 +42,10 @@
     "events": 902,
     "drop_probability": 0.1,
     "dtype": "torch.float32",
-    "first_offset_pair": [0, 112],
+    "first_offset_pair": [
+      0,
+      112
+    ],
     "final_offset": 101024,
     "gap_free": true,
     "shape_counts": {

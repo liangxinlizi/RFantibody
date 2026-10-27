@@ -17,16 +17,40 @@
     "torch": "2.3.1+cu118",
     "sm_count": 132,
     "max_threads_per_sm": 2048,
-    "block_size": 256,
-    "source_commit": "3e5a5bb1cb98befde9fc049ae3ff58cabb491f67"
+    "block_size": 256
   },
   "cases": {
     "count": 84,
-    "seeds": [0, 17, 987654321, 9223372036854775809],
-    "numel": [3, 21, 478, 956, 1025, 4097, 300000],
-    "kinds": ["normal", "exponential", "exponential"],
-    "dtypes": ["torch.float32", "torch.float32", "torch.float64"],
-    "per_case_keys": ["value", "state_before", "state_after"]
+    "seeds": [
+      0,
+      17,
+      987654321,
+      9223372036854775809
+    ],
+    "numel": [
+      3,
+      21,
+      478,
+      956,
+      1025,
+      4097,
+      300000
+    ],
+    "kinds": [
+      "normal",
+      "exponential",
+      "exponential"
+    ],
+    "dtypes": [
+      "torch.float32",
+      "torch.float32",
+      "torch.float64"
+    ],
+    "per_case_keys": [
+      "value",
+      "state_before",
+      "state_after"
+    ]
   },
   "copy": {
     "method": "byte-for-byte copy of rng-holdouts/*.npz and manifest.json",
